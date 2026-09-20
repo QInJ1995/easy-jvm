@@ -1,5 +1,5 @@
 {
-  "name": "@qinjin/jvm",
+  "name": "@qls/jvm",
   "version": "0.1.0",
   "description": "JDK version manager (nvm for JDKs) — Temurin / Zulu / Corretto",
   "type": "module",

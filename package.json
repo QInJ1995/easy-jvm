@@ -1,0 +1,48 @@
+{
+  "name": "@qinjin/jvm",
+  "version": "0.1.0",
+  "description": "JDK version manager (nvm for JDKs) — Temurin / Zulu / Corretto",
+  "type": "module",
+  "bin": {
+    "jvm": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.15"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "prepack": "npm run typecheck && npm run build",
+    "prepublishOnly": "npm test"
+  },
+  "keywords": [
+    "jdk",
+    "java",
+    "version-manager",
+    "nvm",
+    "temurin",
+    "zulu",
+    "corretto"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^15.0.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.0",
+    "vitest": "^5.0.1"
+  }
+}

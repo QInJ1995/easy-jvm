@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: pack smoke
+        run: npm pack --dry-run
+
+  # macOS 已在本机手工验证；CI 覆盖 ubuntu + windows 的真实安装/切换链路
+  e2e:
+    name: e2e (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      JVM_QUIET: '1'
+      SHELL: /bin/bash   # Linux runner 的 $SHELL 可能为空，固定为 bash 使 rc 探测确定
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+
+      - name: install temurin 21
+        run: node dist/index.js install 21
+
+      - name: install corretto 17
+        run: node dist/index.js install 17 --vendor corretto
+
+      - name: ls shows both
+        run: node dist/index.js ls
+
+      - name: use corretto 17
+        run: node dist/index.js use 17 --vendor corretto
+
+      - name: junction + registry (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # current junction 必须指向 corretto javaHome 且 java.exe 可执行
+          & "$env:USERPROFILE\.jvm\current\bin\java.exe" -version
+          if (-not $env:JAVA_HOME) { Write-Host 'runner shell env is stale (expected); reading registry' }
+          $reg = [Environment]::GetEnvironmentVariable('JAVA_HOME', 'User')
+          if ($reg -ne '%USERPROFILE%\.jvm\current') { throw "registry JAVA_HOME wrong: $reg" }
+          $userPath = (Get-ItemProperty 'HKCU:\Environment').Path
+          if ($userPath -notlike '*%JAVA_HOME%\bin*') { throw "user PATH missing %JAVA_HOME%\bin: $userPath" }
+
+      - name: symlink + rc (linux)
+        if: runner.os == 'Linux'
+        run: |
+          test -x "$HOME/.jvm/current/bin/java"
+          "$HOME/.jvm/current/bin/java" -version
+          grep -q 'jvm init' "$HOME/.bashrc"
+          grep -q 'JAVA_HOME="$HOME/.jvm/current"' "$HOME/.bashrc"
+
+      - name: uninstall keeps other versions
+        run: |
+          node dist/index.js uninstall 17 --vendor corretto
+          node dist/index.js ls

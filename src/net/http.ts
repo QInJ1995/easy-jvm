@@ -1,6 +1,6 @@
 import { JvmError } from '../util/errors.js';
 
-const UA = 'jvm-cli/0.1 (npm @qls/jvm)';
+const UA = 'jvm-cli/0.1 (npm easy-jvm)';
 const CONNECT_TIMEOUT_MS = 30_000;
 const RETRIES = 3;
 

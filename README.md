@@ -3,7 +3,7 @@
 像 [nvm](https://nvm.uihtm.com/) 管理 Node.js 一样管理 Java JDK：一个命令安装、切换、卸载多个 JDK 版本。支持 **Temurin / Zulu / Corretto** 三大发行版，覆盖 macOS（Apple Silicon & Intel）、Linux、Windows。
 
 ```sh
-npm install -g @qls/jvm
+npm install -g easy-jvm
 
 jvm install 21                  # 安装 Temurin 21（默认发行版，装最新补丁版）
 jvm install lts                 # 安装最新 LTS
@@ -67,7 +67,7 @@ jvm mirror unset temurin     # 恢复官方源
 ## 卸载 jvm 本身
 
 ```sh
-npm uninstall -g @qls/jvm
+npm uninstall -g easy-jvm
 rm -rf ~/.jvm                                    # JDK 数据目录
 # 并删除 shell 配置文件中的 ">>> jvm init >>>" 到 "<<< jvm init <<<" 标记块
 ```

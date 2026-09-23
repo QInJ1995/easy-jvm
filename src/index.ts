@@ -5,7 +5,6 @@ import { log } from './ui/log.js';
 import { installCommand } from './cli/install.js';
 import { useCommand } from './cli/use.js';
 import { lsCommand } from './cli/ls.js';
-import { lsRemoteCommand } from './cli/ls-remote.js';
 import { currentCommand } from './cli/current.js';
 import { uninstallCommand } from './cli/uninstall.js';
 import { mirrorCommand } from './cli/mirror.js';
@@ -36,14 +35,10 @@ program
 program
   .command('ls')
   .alias('list')
-  .description('list installed JDKs (→ marks current)')
+  .description('list installed JDKs (→ marks current); -r lists installable versions')
+  .option('-r, --remote', 'list installable versions from all vendors')
+  .option('--vendor <id>', 'filter --remote output to one vendor')
   .action(lsCommand);
-
-program
-  .command('ls-remote')
-  .description('list installable JDK majors (with LTS marks)')
-  .option('--vendor <id>', 'vendor to list')
-  .action(lsRemoteCommand);
 
 program
   .command('current')

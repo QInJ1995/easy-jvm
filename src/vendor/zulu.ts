@@ -100,7 +100,7 @@ export const zuluVendor: Vendor = {
     const pick = pickPlainJdk(packages, platform, versionPrefix);
     if (!pick) {
       throw new JvmError(`No Zulu JDK build matches "${versionPrefix}"`, {
-        hint: 'Run `jvm ls-remote --vendor zulu` to see available versions.',
+        hint: 'Run `jvm ls -r` to see available versions.',
       });
     }
     const versionStr = pick.java_version.join('.');

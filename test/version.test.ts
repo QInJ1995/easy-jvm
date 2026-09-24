@@ -13,6 +13,10 @@ import {
   parseGoVersion,
   parseUserSpec,
   parseVersion,
+  parseNodeVersion,
+  formatNodeVersion,
+  parseNodeDirName,
+  parseNodeUserSpec,
 } from '../src/core/version.js';
 import { SdkvmError } from '../src/util/errors.js';
 
@@ -218,5 +222,41 @@ describe('flutter version parsing', () => {
     expect(formatFlutterVersion(v as never)).toBe('3.49.0-0.1.pre');
     expect(parseFlutterDirName('golang-1.24.5')).toBeNull();
     expect(parseFlutterDirName('flutter-abc')).toBeNull();
+  });
+});
+
+
+describe('node version parsing', () => {
+  it('parses v/node-/nodejs- prefixed versions', () => {
+    expect(parseNodeVersion('nodejs', 'v22.20.0')).toMatchObject({ major: 22, minor: 20, patch: 0 });
+    expect(parseNodeVersion('nodejs', 'node-22.20.0')).toMatchObject({ major: 22, minor: 20, patch: 0 });
+    expect(parseNodeVersion('nodejs', 'nodejs-22.20.0')).toMatchObject({ major: 22, minor: 20, patch: 0 });
+    expect(formatNodeVersion(parseNodeVersion('nodejs', 'v22.20.0'))).toBe('22.20.0');
+  });
+
+  it('user spec: major / lts / latest / full / vendor prefix', () => {
+    expect(parseNodeUserSpec('22')).toEqual({ spec: { kind: 'major', major: 22 } });
+    expect(parseNodeUserSpec('lts')).toEqual({ spec: { kind: 'lts' } });
+    expect(parseNodeUserSpec('latest')).toEqual({ spec: { kind: 'latest' } });
+    expect(parseNodeUserSpec('22.20.0')).toEqual({ spec: { kind: 'full', version: '22.20.0' } });
+    expect(parseNodeUserSpec('node-22.20.0')).toEqual({ vendor: 'nodejs', spec: { kind: 'full', version: '22.20.0' } });
+  });
+
+  it('user spec: two-part version rejected with hint', () => {
+    let hint: string | undefined;
+    try {
+      parseNodeUserSpec('22.20');
+    } catch (err) {
+      hint = (err as SdkvmError).hint;
+    }
+    expect(hint).toMatch(/major-only/);
+  });
+
+  it('dir name parse round-trip', () => {
+    const v = parseNodeDirName('nodejs-22.20.0');
+    expect(v?.vendor).toBe('nodejs');
+    expect(formatNodeVersion(v as never)).toBe('22.20.0');
+    expect(parseNodeDirName('node-22.20.0')).toBeNull();
+    expect(parseNodeDirName('golang-1.24.5')).toBeNull();
   });
 });

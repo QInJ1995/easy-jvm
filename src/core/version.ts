@@ -272,3 +272,67 @@ export function parseFlutterUserSpec(input: string): UserSpec {
     hint: 'Expected: 3.47, 3.47.5, 3.49.0-0.1.pre, latest, or with vendor prefix like flutter-3.47',
   });
 }
+
+// —— node 解析 ——
+
+export const NODE_VENDOR_IDS = ['nodejs'] as const;
+
+/** 解析 node 版本串：容忍 "nodejs-"/"node-"/"v" 前缀 */
+export function parseNodeVersion(vendor: VendorId, input: string): SdkVersion {
+  const raw = input.trim();
+  const s = raw.replace(/^nodejs-/i, '').replace(/^node-/i, '').replace(/^v/i, '');
+  const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(s);
+  if (!m || !m[1] || !m[2] || !m[3]) {
+    throw new SdkvmError(`Invalid Node.js version: "${input}"`, {
+      hint: 'Expected forms: 22, 22.20.0, lts, latest',
+    });
+  }
+  return {
+    vendor,
+    major: Number(m[1]),
+    minor: Number(m[2]),
+    patch: Number(m[3]),
+    extra: null,
+    build: null,
+    raw,
+  };
+}
+
+/** node 恒三段展示 */
+export function formatNodeVersion(v: SdkVersion): string {
+  return `${v.major}.${v.minor}.${v.patch ?? 0}`;
+}
+
+/** node 安装目录名 → 版本；不匹配返回 null */
+export function parseNodeDirName(dir: string): SdkVersion | null {
+  const m = new RegExp(`^(${NODE_VENDOR_IDS.join('|')})-(.+)$`).exec(dir);
+  if (!m || !m[1] || !m[2]) return null;
+  try {
+    return parseNodeVersion(m[1], m[2]);
+  } catch {
+    return null;
+  }
+}
+
+/** node 版本语法：22（major 线最新）/ lts / latest / 22.20.0（精确），可带 nodejs-/node- 前缀 */
+export function parseNodeUserSpec(input: string): UserSpec {
+  let s = input.trim().toLowerCase();
+  let vendor: VendorId | undefined;
+  const m = /^(nodejs|node)-(.+)$/.exec(s);
+  if (m && m[2]) {
+    vendor = 'nodejs';
+    s = m[2];
+  }
+  if (s === 'latest') return { vendor, spec: { kind: 'latest' } };
+  if (s === 'lts' || s === '--lts') return { vendor, spec: { kind: 'lts' } };
+  if (/^\d+\.\d+\.\d+$/.test(s)) return { vendor, spec: { kind: 'full', version: s } };
+  if (/^\d+$/.test(s)) return { vendor, spec: { kind: 'major', major: Number(s) } };
+  if (/^\d+\.\d+$/.test(s)) {
+    throw new SdkvmError(`Invalid Node.js version: "${input}"`, {
+      hint: 'Node lines are major-only — use "22" or a full version like "22.20.0"',
+    });
+  }
+  throw new SdkvmError(`Invalid Node.js version: "${input}"`, {
+    hint: 'Expected: 22, 22.20.0, lts, latest, or with vendor prefix like nodejs-22.20.0',
+  });
+}

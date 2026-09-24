@@ -5,6 +5,7 @@ import type { ResolvedArtifact, VendorPlatform } from './types.js';
  * - temurin：官方 GitHub URL → 镜像结构 {root}/{major}/jdk/{arch}/{os}/{file}（已验证镜像：https://mirrors.nju.edu.cn/adoptium）
  * - golang：文件名直接拼接 {root}/{filename}（兼容 https://golang.google.cn/dl 与 https://mirrors.aliyun.com/golang）
  * - flutter：官方桶前缀替换 storage.googleapis.com/flutter_infra_release → {root}（已验证镜像：https://mirror.nju.edu.cn/flutter/flutter_infra_release）
+ * - nodejs：官方分发根前缀替换 nodejs.org/dist → {root}（已验证镜像：https://mirror.nju.edu.cn/nodejs-release）
  */
 export function applyMirror(
   artifact: ResolvedArtifact,
@@ -24,6 +25,11 @@ export function applyMirror(
       /^https:\/\/storage\.googleapis\.com\/flutter_infra_release/,
       root,
     );
+    return { ...artifact, downloadUrl: url };
+  }
+  if (artifact.vendorId === 'nodejs') {
+    const root = mirrorRoot.replace(/\/+$/, '');
+    const url = artifact.downloadUrl.replace(/^https:\/\/nodejs\.org\/dist/, root);
     return { ...artifact, downloadUrl: url };
   }
   if (artifact.vendorId !== 'temurin') return artifact;

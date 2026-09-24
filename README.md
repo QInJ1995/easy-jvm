@@ -10,7 +10,7 @@
 [![node](https://img.shields.io/badge/node-%3E%3D18.15-green)](./package.json)
 [![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)](#系统要求)
 
-像 [nvm](https://github.com/nvm-sh/nvm) 管理 Node.js 一样管理 **Java JDK**、**Go 工具链** 与 **Flutter SDK**。
+像 [nvm](https://github.com/nvm-sh/nvm) 管理 Node.js 一样管理 **Java JDK**、**Go 工具链**、**Flutter SDK** 与 **Node.js 运行时**（对，Node 也能管）。
 
 </div>
 
@@ -41,11 +41,12 @@
 - **Java**：内置 [Adoptium Temurin](https://adoptium.net/)、[Azul Zulu](https://www.azul.com/downloads/)、[Amazon Corretto](https://aws.amazon.com/corretto/) 三个主流发行版，支持 `lts` 语义（当前 LTS：8 / 11 / 17 / 21 / 25）
 - **Go**：官方 [go.dev](https://go.dev/dl/) 源，全历史稳定版可装
 - **Flutter**：官方发布清单（stable / beta 通道），macOS 双架构、Linux / Windows x64
+- **Node.js**：官方 [nodejs.org/dist](https://nodejs.org/dist) 源，SHASUMS256 强校验，`lts`（当前 24 Krypton）/ `latest`（Current）/ 按线安装，npm 随版本一起切换
 - **多平台**：macOS（Apple Silicon / Intel）、Linux、Windows 10+
-- **开箱即用**：仅依赖 Node.js 与系统自带的 tar / PowerShell，各 SDK 完全隔离，`JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT` 并存互不干扰
+- **开箱即用**：仅依赖 Node.js 与系统自带的 tar / PowerShell，各 SDK 完全隔离，`JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT` / `NODE_HOME` 并存互不干扰
 - **秒级切换**：`use` 只更新一个符号链接（Windows 为 junction），不搬移文件、不改全局环境
-- **官方源直连**：下载地址一律经官方 API 解析；Go 与 Flutter 的官方清单内联 SHA-256，**强制校验**，其余源尽力校验
-- **镜像支持**：Temurin、Go、Flutter 均可配置国内镜像加速下载（校验和仍取自官方，镜像文件被交叉验证）
+- **官方源直连**：下载地址一律经官方 API 解析；Go、Flutter、Node.js 的官方清单提供 SHA-256，**强制校验**，其余源尽力校验
+- **镜像支持**：Temurin、Go、Flutter、Node.js 均可配置国内镜像加速下载（校验和仍取自官方，镜像文件被交叉验证）
 - **可扩展**：SDK 类型抽象（`src/sdk/`）之上新增语言只需实现一个厂商模块（见[开发](#开发)）
 
 ## 从 easy-jvm 升级
@@ -109,13 +110,19 @@ sdkvm flutter install 3.47        # 安装 3.47 线最新补丁版（stable 通�
 sdkvm flutter use 3.47            # 切换（更新 FLUTTER_ROOT / PATH）
 flutter --version
 
+# Node.js（node 子命令组）
+sdkvm node install lts            # 安装最新 LTS（当前为 24 线 Krypton）
+sdkvm node use 24                 # 切换（更新 NODE_HOME / PATH，npm 一并切换）
+node --version
+
 # 混合使用
-sdkvm current                     # 同时显示 java / go / flutter 的当前版本
+sdkvm current                     # 同时显示 java / go / flutter / node 的当前版本
 sdkvm java install 21 --vendor zulu
 sdkvm java use zulu-21
 sdkvm ls                          # 已装的 Java
 sdkvm go ls                       # 已装的 Go
 sdkvm flutter ls                  # 已装的 Flutter
+sdkvm node ls                     # 已装的 Node.js
 sdkvm uninstall zulu-21
 sdkvm go uninstall 1.24
 ```
@@ -134,7 +141,7 @@ Java 用裸命令（`sdkvm install …`）或 `sdkvm java …` 子命令组，�
 | `sdkvm current` | 显示全部 SDK 类型的当前版本 |
 | `sdkvm uninstall <version>` | 卸载一个版本 |
 | `sdkvm mirror show·set·unset` | 管理下载镜像 |
-| `sdkvm java · go · flutter …` | 各 SDK 类型的完整命令组 |
+| `sdkvm java · go · flutter · node …` | 各 SDK 类型的完整命令组 |
 | `sdkvm version` | 打印 CLI 版本号 |
 
 各类型的版本语法速查：
@@ -160,7 +167,7 @@ sdkvm switch to it: sdkvm use 21
 
 | 选项 | 说明 |
 |---|---|
-| `--vendor <id>` | 指定发行版：`temurin`（默认）/ `zulu` / `corretto`；Go 只有 `golang`，Flutter 只有 `flutter` |
+| `--vendor <id>` | 指定发行版：`temurin`（默认）/ `zulu` / `corretto`；Go 只有 `golang`，Flutter 只有 `flutter`，Node.js 只有 `nodejs` |
 | `--force` | 已安装时移除重装（默认跳过已装版本） |
 
 失败行为：校验不过 / 解压异常会自动清理半成品目录与缓存，不留脏状态；下载采用 60 秒**空闲超时**（60s 无数据才中止，大文件不会被总时长掐断）。
@@ -219,6 +226,8 @@ go: golang-1.24.5
   GOROOT → ~/.sdkvm/gos/golang-1.24.5
 flutter: flutter-3.47.5
   FLUTTER_ROOT → ~/.sdkvm/flutters/flutter-3.47.5
+node: nodejs-22.20.0
+  NODE_HOME → ~/.sdkvm/nodes/nodejs-22.20.0
 ```
 
 ### `sdkvm uninstall <version>`
@@ -243,21 +252,22 @@ flutter: flutter-3.47.5
 
 `install` / `use` / `uninstall` 共用版本语法，按 SDK 类型区分：
 
-| 语法 | Java 含义 | Go 含义 | Flutter 含义 | 示例 |
-|---|---|---|---|---|
-| `<major>` | 该大版本最新补丁版（`21`） | — | —（裸大版本拒绝，建议 `latest`） | `21` |
-| `<major.minor>` | — | 该 minor 线最新补丁版 | 该 minor 线最新补丁版（stable 通道） | `1.24`、`3.47` |
-| `lts` | 最新 LTS 大版本 | —（无 LTS） | —（无 LTS） | `lts` |
-| `latest` | — | 全局最新稳定版 | stable 通道最新（不追 beta） | `latest` |
-| `<full-version>` | 精确版本 / 前缀匹配 | 精确版本 | 精确版本，可带 prerelease 段装 beta | `21.0.5+11`、`1.24.5`、`3.49.0-0.1.pre` |
-| `<vendor>-…` | 加厂商前缀限定发行版 | 同左 | 同左 | `zulu-21`、`golang-1.24`、`flutter-3.47` |
+| 语法 | Java 含义 | Go 含义 | Flutter 含义 | Node.js 含义 | 示例 |
+|---|---|---|---|---|---|
+| `<major>` | 该大版本最新补丁版（`21`） | — | —（裸大版本拒绝，建议 `latest`） | 该 major 线最新（`22` → 22.x 最新） | `21`、`22` |
+| `<major.minor>` | — | 该 minor 线最新补丁版 | 该 minor 线最新补丁版（stable 通道） | —（两段式拒绝，Node 的线是 major） | `1.24`、`3.47` |
+| `lts` | 最新 LTS 大版本 | —（无 LTS） | —（无 LTS） | 最新 LTS 线（当前 24 Krypton） | `lts` |
+| `latest` | — | 全局最新稳定版 | stable 通道最新（不追 beta） | 全局最新（Current 通道） | `latest` |
+| `<full-version>` | 精确版本 / 前缀匹配 | 精确版本 | 精确版本，可带 prerelease 段装 beta | 精确版本 | `21.0.5+11`、`1.24.5`、`3.49.0-0.1.pre`、`22.20.0` |
+| `<vendor>-…` | 加厂商前缀限定发行版 | 同左 | 同左 | 同左 | `zulu-21`、`golang-1.24`、`nodejs-22.20.0` |
 
 匹配规则：
 
 - `21` 匹配该大版本下**已安装/可安装的最新补丁版**；`1.24`、`3.47` 同理匹配该线最新补丁版
 - Java 的 `21.0.5` 做前缀匹配，可命中 `21.0.5+11`；Go / Flutter 的精确版本为全串匹配
 - Flutter 的 `latest` / `3.47` 只在 **stable** 通道解析；装 beta 需给完整 prerelease 版本号（如 `3.49.0-0.1.pre`）
-- Java 的 `lts` 当前指 8 / 11 / 17 / 21 / 25（与 Adoptium LTS 列表对齐）
+- Java 的 `lts` 当前指 8 / 11 / 17 / 21 / 25（与 Adoptium LTS 列表对齐）；Node.js 的 `lts` 解析官方 index.json 中最新带 LTS 代号的条目（当前 24 Krypton）
+- Node.js 的版本线是 major（`22` 匹配 22.x 最新）；`22.20` 这类两段式输入会被拒绝并提示改用 `22` 或完整版本号
 - 不带厂商前缀时使用默认发行版（仅 Java 可配，见[配置文件](#配置文件)；Go / Flutter 各只有一个官方源）
 
 ## 工作原理
@@ -271,15 +281,17 @@ flutter: flutter-3.47.5
 ├── jdks/                    # Java：<vendor>-<version>，如 temurin-21.0.12.1
 ├── gos/                     # Go：golang-<version>，如 golang-1.24.5
 ├── flutters/                # Flutter：flutter-<version>，如 flutter-3.47.5
+├── nodes/                   # Node.js：nodejs-<version>，如 nodejs-22.20.0
 ├── current-java             # 指向当前 JAVA_HOME 的链接（Windows 上为 junction）
 ├── current-go               # 指向当前 GOROOT 的链接
 ├── current-flutter          # 指向当前 FLUTTER_ROOT 的链接
+├── current-node             # 指向当前 NODE_HOME 的链接
 ├── config.json              # CLI 配置（见「配置」）
 ├── cache/                   # 下载中转（安装成功后自动清理，不做长期缓存）
 └── tmp/                     # 解压临时目录（同样自动清理）
 ```
 
-各版本的磁盘量级（解压后，供规划空间参考）：Java 每版本约 300 MB，Go 约 250 MB，Flutter 数 GB（压缩包本身 1–2.2 GB）。
+各版本的磁盘量级（解压后，供规划空间参考）：Java 每版本约 300 MB，Go 约 250 MB，Node.js 约 100 MB（含捆绑 npm），Flutter 数 GB（压缩包本身 1–2.2 GB）。
 
 ### 切换机制
 
@@ -302,13 +314,18 @@ case ":$PATH:" in *":$GOROOT/bin:"*) ;; *) export PATH="$GOROOT/bin:$PATH";; esa
 export FLUTTER_ROOT="$HOME/.sdkvm/current-flutter"
 case ":$PATH:" in *":$FLUTTER_ROOT/bin:"*) ;; *) export PATH="$FLUTTER_ROOT/bin:$PATH";; esac
 # <<< sdkvm flutter init <<<
+
+# >>> sdkvm node init >>>
+export NODE_HOME="$HOME/.sdkvm/current-node"
+case ":$PATH:" in *":$NODE_HOME/bin:"*) ;; *) export PATH="$NODE_HOME/bin:$PATH";; esac
+# <<< sdkvm node init <<<
 ```
 
 环境变量指向**链接**而非具体版本目录，因此之后每次 `use` 只改链接指向，已开的终端在下一次 `source` rc 或新开终端时读到新值。
 
 **Windows**
 
-`%USERPROFILE%\.sdkvm\current-java` / `current-go` / `current-flutter` 为 junction；`use` 写入用户级 `JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT`，并把 `%JAVA_HOME%\bin`、`%GOROOT%\bin`、`%FLUTTER_ROOT%\bin` 追加到用户 PATH。通过注册表 API 操作并原样保留 `REG_EXPAND_SZ` 类型与 `%VAR%` 引用，避免 `setx` 的 1024 字符截断问题。需要**重开终端**（或重启 IDE）生效。
+`%USERPROFILE%\.sdkvm\current-java` / `current-go` / `current-flutter` / `current-node` 为 junction；`use` 写入用户级 `JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT` / `NODE_HOME`，并把 `%JAVA_HOME%\bin`、`%GOROOT%\bin`、`%FLUTTER_ROOT%\bin` 追加到用户 PATH（Node 特例：Windows 归档没有 `bin/`，可执行文件在根目录，PATH 项为 `%NODE_HOME%` 本身）。通过注册表 API 操作并原样保留 `REG_EXPAND_SZ` 类型与 `%VAR%` 引用，避免 `setx` 的 1024 字符截断问题。需要**重开终端**（或重启 IDE）生效。
 
 ### 数据迁移
 
@@ -327,7 +344,8 @@ case ":$PATH:" in *":$FLUTTER_ROOT/bin:"*) ;; *) export PATH="$FLUTTER_ROOT/bin:
   "mirror": {
     "temurin": "https://mirrors.nju.edu.cn/adoptium",
     "golang": "https://golang.google.cn/dl",
-    "flutter": "https://mirror.nju.edu.cn/flutter/flutter_infra_release"
+    "flutter": "https://mirror.nju.edu.cn/flutter/flutter_infra_release",
+    "nodejs": "https://mirror.nju.edu.cn/nodejs-release"
   }
 }
 ```
@@ -358,6 +376,7 @@ Temurin 默认从 GitHub 下载、Go 默认从 go.dev 下载、Flutter 默认从
 sdkvm mirror set temurin https://mirrors.nju.edu.cn/adoptium                              # Java
 sdkvm go mirror set golang https://golang.google.cn/dl                                    # Go
 sdkvm flutter mirror set flutter https://mirror.nju.edu.cn/flutter/flutter_infra_release # Flutter
+sdkvm node mirror set nodejs https://mirror.nju.edu.cn/nodejs-release                      # Node.js
 ```
 
 也可以用环境变量临时指定（不写入配置）：
@@ -366,12 +385,12 @@ sdkvm flutter mirror set flutter https://mirror.nju.edu.cn/flutter/flutter_infra
 SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 ```
 
-> 镜像仅替换 tarball 下载地址，版本元数据与校验和**始终走官方 API**——即使文件来自镜像，sha256 仍与官方清单核对。Go 镜像根 URL 兼容 `https://golang.google.cn/dl`（官方中国站）与 `https://mirrors.aliyun.com/golang`（文件名直接拼接）；Flutter 镜像为桶前缀替换（已验证 [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release)；`storage.flutter-io.cn` 不含发布清单，勿用）；Zulu 与 Corretto 由官方 CDN 直接分发，暂不支持镜像。
+> 镜像仅替换 tarball 下载地址，版本元数据与校验和**始终走官方 API**——即使文件来自镜像，sha256 仍与官方清单核对。Go 镜像根 URL 兼容 `https://golang.google.cn/dl`（官方中国站）与 `https://mirrors.aliyun.com/golang`（文件名直接拼接）；Flutter 镜像为桶前缀替换（已验证 [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release)；`storage.flutter-io.cn` 不含发布清单，勿用）；Node.js 同为前缀替换（已验证 [NJU](https://mirror.nju.edu.cn/nodejs-release)；TUNA 的 nodejs-release 缺归档文件，勿用）；Zulu 与 Corretto 由官方 CDN 直接分发，暂不支持镜像。
 
 ## 安全性
 
-- 下载地址通过**官方 API** 解析（Adoptium API / Azul Metadata API / Corretto 官方分发 / go.dev/dl JSON API / Flutter releases 清单），不做任何搜索页抓取
-- tarball 做逐块流式 **SHA-256 校验**：Go 与 Flutter 的校验和内联于官方 API，**强制校验**；Java 各源尽力校验，校验源不可达时警告放行
+- 下载地址通过**官方 API** 解析（Adoptium API / Azul Metadata API / Corretto 官方分发 / go.dev/dl JSON API / Flutter releases 清单 / nodejs.org/dist index.json），不做任何搜索页抓取
+- tarball 做逐块流式 **SHA-256 校验**：Go、Flutter、Node.js（SHASUMS256.txt，永远取官方源）**强制校验**；Java 各源尽力校验，校验源不可达时警告放行
 - 解压前校验归档结构（单根目录、可执行文件存在），且只解压到全新空目录，防止路径穿越
 - 安装全程持有文件锁（`~/.sdkvm/.lock`），避免并发安装互相踩踏
 
@@ -388,6 +407,9 @@ rc 代码块只在**新终端**（或 `source ~/.zshrc`）时生效；IDE 需重
 
 **Q：怎么安装 Flutter beta？**
 给完整 prerelease 版本号：`sdkvm flutter install 3.49.0-0.1.pre`。`latest` 与版本线（`3.47`）只解析 stable 通道。
+
+**Q：sdkvm 管理 Node.js，那 sdkvm 自己会不会受影响？（自举）**
+`sdkvm` 自身需要 Node.js ≥ 18.15 运行。如果切到很老的 Node 线（如 12），新终端里 `sdkvm` 可能因运行时过旧而启动失败——`sdkvm node use 22` 切回较新版本即可恢复。与 nvm 共存没有冲突：sdkvm 的 PATH 守卫只防自己的条目重复，各管各的；但两者都往 PATH 前面插，后加载的先生效。
 
 **Q：公司网络走代理，能用吗？**
 当前版本未内置 HTTP 代理支持（Node fetch 不读 `HTTPS_PROXY`）。可用系统级透明代理，或关注后续版本。
@@ -408,9 +430,9 @@ npm uninstall -g sdkvm
 rm -rf ~/.sdkvm       # 删除 SDK 数据目录（会删掉所有已装版本，先确认）
 ```
 
-并删除 shell 配置文件中 `>>> sdkvm java init >>>`、`>>> sdkvm go init >>>`、`>>> sdkvm flutter init >>>` 各自到 `<<< … <<<` 之间的标记块。
+并删除 shell 配置文件中 `>>> sdkvm java init >>>`、`>>> sdkvm go init >>>`、`>>> sdkvm flutter init >>>`、`>>> sdkvm node init >>>` 各自到 `<<< … <<<` 之间的标记块。
 
-Windows 用户额外需要：在系统设置中删除 `JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT`，并从用户 PATH 移除 `%JAVA_HOME%\bin`、`%GOROOT%\bin`、`%FLUTTER_ROOT%\bin`。
+Windows 用户额外需要：在系统设置中删除 `JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT` / `NODE_HOME`，并从用户 PATH 移除 `%JAVA_HOME%\bin`、`%GOROOT%\bin`、`%FLUTTER_ROOT%\bin`、`%NODE_HOME%`。
 
 ## 开发
 
@@ -429,8 +451,8 @@ npm run build       # tsup → dist/index.js（本地试用：node dist/index.js
 src/
 ├── cli/       # 命令实现（install / use / ls / uninstall / mirror …）
 ├── core/      # 版本解析、安装注册表、配置、迁移、文件锁
-├── sdk/       # SDK 类型描述（java / go / flutter：目录名、环境变量、版本语法）
-├── vendor/    # 发行版适配（temurin / zulu / corretto / golang / flutter）+ 镜像改写
+├── sdk/       # SDK 类型描述（java / go / flutter / node：目录名、环境变量、版本语法）
+├── vendor/    # 发行版适配（temurin / zulu / corretto / golang / flutter / nodejs）+ 镜像改写
 ├── fs/        # 下载 / 校验 / 解压 / 归一化 / 链接
 ├── shell/     # rc 探测与写入、Windows 注册表环境变量
 ├── net/       # fetch 封装（重试、超时）、流式下载

@@ -18,6 +18,9 @@ export const goSdk: SdkTypeSpec = {
   binRelPath(platform) {
     return `bin/${platform.os === 'windows' ? 'go.exe' : 'go'}`;
   },
+  envBinSuffix(platform) {
+    return platform.os === 'windows' ? '\\bin' : '/bin';
+  },
   // go 归档是单根 go/ 目录，无 macOS bundle 概念
   locateHome: (root) => root,
   versionCheck: { args: ['version'], stream: 'stdout' },

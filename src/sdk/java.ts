@@ -25,6 +25,9 @@ export const javaSdk: SdkTypeSpec = {
   binRelPath(platform) {
     return `bin/${platform.os === 'windows' ? 'java.exe' : 'java'}`;
   },
+  envBinSuffix(platform) {
+    return platform.os === 'windows' ? '\\bin' : '/bin';
+  },
   locateHome(root) {
     // macOS JDK 是 bundle：环境语义目录在 Contents/Home
     const contentsHome = path.join(root, 'Contents', 'Home');

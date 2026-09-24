@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { paths } from '../core/paths.js';
+import { detectPlatform } from '../core/platform.js';
 import { getSdkType } from '../sdk/index.js';
 import type { SdkTypeId } from '../sdk/types.js';
 import { CLI_BIN } from '../cli/cmdname.js';
@@ -21,6 +22,7 @@ export function rcEnd(type: SdkTypeId): string {
 /** 标记块内容：环境变量指向该类型的 current 链接；case 守卫防 PATH 重复叠加 */
 export function rcBlock(type: SdkTypeId): string {
   const spec = getSdkType(type);
+  const binSuffix = spec.envBinSuffix(detectPlatform());
   const abs = paths.current(type);
   const rel = path.relative(os.homedir(), abs);
   // rc 是 shell 脚本，分隔符永远用 /（Windows 上 path.relative 会给出 \）
@@ -30,7 +32,7 @@ export function rcBlock(type: SdkTypeId): string {
   return [
     rcBegin(type),
     `export ${spec.envVar}="${link}"`,
-    `case ":$PATH:" in *":$${spec.envVar}/bin:"*) ;; *) export PATH="$${spec.envVar}/bin:$PATH";; esac`,
+    `case ":$PATH:" in *":$${spec.envVar}${binSuffix}:"*) ;; *) export PATH="$${spec.envVar}${binSuffix}:$PATH";; esac`,
     rcEnd(type),
   ].join('\n');
 }

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { run } from '../util/spawn.js';
 import { SdkvmError } from '../util/errors.js';
 import { paths } from '../core/paths.js';
+import { detectPlatform } from '../core/platform.js';
 import { getSdkType } from '../sdk/index.js';
 import type { SdkTypeId } from '../sdk/types.js';
 
@@ -84,9 +85,10 @@ export async function removeFromUserPathWin(entry: string): Promise<void> {
   await run('powershell.exe', encoded(ps));
 }
 
-/** 某类型环境变量对应的 PATH 项（如 %JAVA_HOME%\bin） */
+/** 某类型环境变量对应的 PATH 项（如 %JAVA_HOME%\bin；node 在 windows 无 bin/ → %NODE_HOME%） */
 export function sdkPathEntry(type: SdkTypeId): string {
-  return `%${getSdkType(type).envVar}%\\bin`;
+  const spec = getSdkType(type);
+  return `%${spec.envVar}%${spec.envBinSuffix(detectPlatform())}`;
 }
 
 export function assertWindows(): void {

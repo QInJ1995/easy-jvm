@@ -78,3 +78,13 @@ describe('flutter rc block', () => {
     expect(content).toContain('export A=1');
   });
 });
+
+describe('node rc block', () => {
+  it('exports NODE_HOME pointing at current-node', () => {
+    const block = rcBlock('node');
+    expect(block).toContain('NODE_HOME=');
+    expect(block).toContain('current-node');
+    expect(block).toContain('case ":$PATH:"');
+    expect(block).toContain('"$HOME/.sdkvm/current-node"');
+  });
+});

@@ -1,8 +1,8 @@
 import type { Platform } from '../core/platform.js';
 import type { ReleaseLine, SdkVersion, UserSpec, Vendor, VendorPlatform, VersionSpec } from '../vendor/types.js';
 
-/** SDK 类型 id：java / go / flutter（未来可扩展） */
-export type SdkTypeId = 'java' | 'go' | 'flutter';
+/** SDK 类型 id：java / go / flutter / node（未来可扩展） */
+export type SdkTypeId = 'java' | 'go' | 'flutter' | 'node';
 
 /**
  * SDK 类型描述：目录布局、版本语法、环境变量、探测方式全部按类型参数化，
@@ -29,6 +29,8 @@ export interface SdkTypeSpec {
   compareVersions(a: SdkVersion, b: SdkVersion): number;
   /** home 目录内可执行文件的相对路径 */
   binRelPath(platform: Platform | VendorPlatform): string;
+  /** 环境变量目录追加到 PATH 的段（rc 守卫与 Windows PATH entry 共用；node 在 windows 无 bin/ → ''） */
+  envBinSuffix(platform: Platform | VendorPlatform): string;
   /** 解压根目录 → 环境语义目录（java macOS bundle → Contents/Home；go 原样） */
   locateHome(root: string): string;
   /** use 后打印版本的方式（java -version 在 stderr；go version 在 stdout） */

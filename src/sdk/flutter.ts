@@ -18,6 +18,9 @@ export const flutterSdk: SdkTypeSpec = {
   binRelPath(platform) {
     return `bin/${platform.os === 'windows' ? 'flutter.bat' : 'flutter'}`;
   },
+  envBinSuffix(platform) {
+    return platform.os === 'windows' ? '\\bin' : '/bin';
+  },
   // flutter 归档是单根 flutter/ 目录，无 macOS bundle 概念
   locateHome: (root) => root,
   versionCheck: { args: ['--version'], stream: 'stdout' },

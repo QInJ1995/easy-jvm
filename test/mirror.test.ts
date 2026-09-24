@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyMirror } from '../src/vendor/mirror.js';
 import { parseVersion } from '../src/core/version.js';
-import { parseGoVersion, parseFlutterVersion } from '../src/core/version.js';
+import { parseGoVersion, parseFlutterVersion, parseNodeVersion } from '../src/core/version.js';
 import type { ResolvedArtifact } from '../src/vendor/types.js';
 
 function artifact(url: string, vendorId: string = 'temurin'): ResolvedArtifact {
@@ -107,5 +107,33 @@ describe('applyMirror: flutter', () => {
   it('no mirror → untouched', () => {
     const a = flutterArtifact();
     expect(applyMirror(a, lin, null).downloadUrl).toBe(a.downloadUrl);
+  });
+});
+
+describe('applyMirror nodejs', () => {
+  const lin = { os: 'linux' as const, arch: 'x64' as const };
+  const NODE_URL = 'https://nodejs.org/dist/v22.20.0/node-v22.20.0-linux-x64.tar.xz';
+
+  function nodeArtifact(): ResolvedArtifact {
+    return {
+      vendorId: 'nodejs',
+      version: parseNodeVersion('nodejs', '22.20.0'),
+      dirName: 'nodejs-22.20.0',
+      displayName: 'Node.js 22.20.0',
+      downloadUrl: NODE_URL,
+      checksum: { kind: 'sha256', expected: 'a'.repeat(64) },
+      archive: 'tar.xz',
+    };
+  }
+
+  it('rewrites nodejs.org/dist prefix to mirror root', () => {
+    const out = applyMirror(nodeArtifact(), lin, 'https://mirror.nju.edu.cn/nodejs-release');
+    expect(out.downloadUrl).toBe(
+      'https://mirror.nju.edu.cn/nodejs-release/v22.20.0/node-v22.20.0-linux-x64.tar.xz',
+    );
+  });
+
+  it('no mirror → untouched', () => {
+    expect(applyMirror(nodeArtifact(), lin, null).downloadUrl).toBe(NODE_URL);
   });
 });

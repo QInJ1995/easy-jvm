@@ -99,8 +99,48 @@ jobs:
           node dist/index.js uninstall 17 --vendor corretto
           node dist/index.js ls
 
+      - name: install node 22
+        run: node dist/index.js node install 22
+
+      - name: use node 22
+        run: node dist/index.js node use 22
+
+      - name: node current + rc (linux)
+        if: runner.os == 'Linux'
+        run: |
+          test -x "$HOME/.sdkvm/current-node/bin/node"
+          "$HOME/.sdkvm/current-node/bin/node" --version
+          grep -q 'sdkvm node init' "$HOME/.bashrc"
+          grep -q 'NODE_HOME="$HOME/.sdkvm/current-node"' "$HOME/.bashrc"
+
+      - name: node junction + registry (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # windows 归档没有 bin/：node.exe 在 current-node 根目录，PATH entry 为 %NODE_HOME%（无 \bin）
+          & "$env:USERPROFILE\.sdkvm\current-node\node.exe" --version
+          $k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
+          $fmt=[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
+          $reg=[string]$k.GetValue('NODE_HOME','',$fmt)
+          if ($reg -ne '%USERPROFILE%\.sdkvm\current-node') { throw "registry NODE_HOME wrong: $reg" }
+          $userPath=[string]$k.GetValue('Path','',$fmt)
+          if ($userPath -notlike '*%NODE_HOME%*') { throw "user PATH missing %NODE_HOME%: $userPath" }
+
       - name: install go 1.24
+        if: runner.os != 'Windows'
         run: node dist/index.js go install 1.24
+
+      - name: install go 1.24 (windows, annotated)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set +e
+          out=$(node dist/index.js go install 1.24 2>&1); code=$?
+          echo "$out"
+          if [ $code -ne 0 ]; then
+            echo "::error title=go-install-windows::$(echo "$out" | tail -12 | tr '\n' '|')"
+            exit 1
+          fi
 
       - name: use go 1.24
         run: node dist/index.js go use 1.24
@@ -136,33 +176,6 @@ jobs:
           node dist/index.js flutter ls -r
           node dist/index.js flutter mirror set flutter https://mirror.nju.edu.cn/flutter/flutter_infra_release
           node dist/index.js flutter mirror show
-
-      - name: install node 22
-        run: node dist/index.js node install 22
-
-      - name: use node 22
-        run: node dist/index.js node use 22
-
-      - name: node current + rc (linux)
-        if: runner.os == 'Linux'
-        run: |
-          test -x "$HOME/.sdkvm/current-node/bin/node"
-          "$HOME/.sdkvm/current-node/bin/node" --version
-          grep -q 'sdkvm node init' "$HOME/.bashrc"
-          grep -q 'NODE_HOME="$HOME/.sdkvm/current-node"' "$HOME/.bashrc"
-
-      - name: node junction + registry (windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          # windows 归档没有 bin/：node.exe 在 current-node 根目录，PATH entry 为 %NODE_HOME%（无 \bin）
-          & "$env:USERPROFILE\.sdkvm\current-node\node.exe" --version
-          $k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
-          $fmt=[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
-          $reg=[string]$k.GetValue('NODE_HOME','',$fmt)
-          if ($reg -ne '%USERPROFILE%\.sdkvm\current-node') { throw "registry NODE_HOME wrong: $reg" }
-          $userPath=[string]$k.GetValue('Path','',$fmt)
-          if ($userPath -notlike '*%NODE_HOME%*') { throw "user PATH missing %NODE_HOME%: $userPath" }
 
       - name: uninstall go
         run: node dist/index.js go uninstall 1.24

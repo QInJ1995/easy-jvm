@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyMirror } from '../src/vendor/mirror.js';
 import { parseVersion } from '../src/core/version.js';
-import { parseGoVersion } from '../src/core/version.js';
+import { parseGoVersion, parseFlutterVersion } from '../src/core/version.js';
 import type { ResolvedArtifact } from '../src/vendor/types.js';
 
 function artifact(url: string, vendorId: string = 'temurin'): ResolvedArtifact {
@@ -76,5 +76,36 @@ describe('applyMirror', () => {
   it('non-github temurin URL untouched', () => {
     const a = artifact('https://example.com/other.tar.gz');
     expect(applyMirror(a, mac, 'https://m.example').downloadUrl).toBe('https://example.com/other.tar.gz');
+  });
+});
+
+
+describe('applyMirror: flutter', () => {
+  const lin = { os: 'linux' as const, arch: 'x64' as const };
+
+  function flutterArtifact(): ResolvedArtifact {
+    return {
+      vendorId: 'flutter',
+      version: parseFlutterVersion('flutter', '3.47.5'),
+      dirName: 'flutter-3.47.5',
+      displayName: 'Flutter 3.47.5',
+      downloadUrl:
+        'https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_3.47.5-stable.tar.xz',
+      checksum: { kind: 'sha256', expected: 'a'.repeat(64) },
+      archive: 'tar.xz',
+    };
+  }
+
+  it('replaces the official bucket prefix with the mirror root', () => {
+    const out = applyMirror(flutterArtifact(), lin, 'https://mirror.nju.edu.cn/flutter/flutter_infra_release');
+    expect(out.downloadUrl).toBe(
+      'https://mirror.nju.edu.cn/flutter/flutter_infra_release/releases/stable/linux/flutter_linux_3.47.5-stable.tar.xz',
+    );
+    expect(out.archive).toBe('tar.xz');
+  });
+
+  it('no mirror → untouched', () => {
+    const a = flutterArtifact();
+    expect(applyMirror(a, lin, null).downloadUrl).toBe(a.downloadUrl);
   });
 });

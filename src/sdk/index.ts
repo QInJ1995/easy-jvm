@@ -1,15 +1,17 @@
 import type { SdkTypeId, SdkTypeSpec } from './types.js';
 import { javaSdk } from './java.js';
 import { goSdk } from './go.js';
+import { flutterSdk } from './flutter.js';
 import { SdkvmError } from '../util/errors.js';
 
 const SPECS: Partial<Record<SdkTypeId, SdkTypeSpec>> = {
   java: javaSdk,
   go: goSdk,
+  flutter: flutterSdk,
 };
 
 /** 已注册的 SDK 类型（current/迁移等需要遍历全部类型时使用） */
-export const SDK_TYPES: readonly SdkTypeId[] = ['java', 'go'];
+export const SDK_TYPES: readonly SdkTypeId[] = ['java', 'go', 'flutter'];
 
 export function getSdkType(id: SdkTypeId): SdkTypeSpec {
   const spec = SPECS[id];

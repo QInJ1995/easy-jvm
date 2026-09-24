@@ -9,7 +9,7 @@
 [![node](https://img.shields.io/badge/node-%3E%3D18.15-green)](./package.json)
 [![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-blue)](#系统要求)
 
-像 [nvm](https://github.com/nvm-sh/nvm) 管理 Node.js 一样管理 **Java JDK** 与 **Go 工具链**。
+像 [nvm](https://github.com/nvm-sh/nvm) 管理 Node.js 一样管理 **Java JDK**、**Go 工具链** 与 **Flutter SDK**。
 
 </div>
 
@@ -38,11 +38,12 @@
 
 - **Java**：内置 [Adoptium Temurin](https://adoptium.net/)、[Azul Zulu](https://www.azul.com/downloads/)、[Amazon Corretto](https://aws.amazon.com/corretto/) 三个主流发行版
 - **Go**：官方 [go.dev](https://go.dev/dl/) 源，全历史稳定版可装
+- **Flutter**：官方发布清单（stable / beta），macOS 双架构、Linux / Windows x64
 - **多平台**：macOS（Apple Silicon / Intel）、Linux、Windows 10+
-- **开箱即用**：无任何语言环境依赖，各 SDK 之间完全隔离，`JAVA_HOME` 与 `GOROOT` 并存互不干扰
+- **开箱即用**：无任何语言环境依赖，各 SDK 之间完全隔离，`JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT` 并存互不干扰
 - **秒级切换**：通过符号链接更新环境变量 / `PATH`，无需修改全局环境
 - **官方源直连**：通过官方 API 解析下载地址，并尽可能做 SHA-256 校验（Go 源内联官方校验和，强制校验）
-- **镜像支持**：Temurin 与 Go 均可配置国内镜像加速下载
+- **镜像支持**：Temurin、Go、Flutter 均可配置国内镜像加速下载
 - **可扩展**：SDK 类型抽象（`src/sdk/`）之上新增语言只需实现一个厂商模块
 
 ## 从 easy-jvm 升级
@@ -62,6 +63,8 @@ npm install -g sdkvm
 |---|---|
 | Node.js | >= 18.15 |
 | 操作系统 | macOS（Apple Silicon / Intel）/ 主流 Linux 发行版 / Windows 10+ |
+
+> Linux 解压 Flutter 归档（`.tar.xz`）需系统装有 `xz`（`xz-utils`）；主流发行版默认自带。另：Flutter 官方在 Linux / Windows 只发布 x64 归档，ARM Linux 无法安装；`flutter` 命令首次运行会做内部初始化，耗时较久属正常现象。
 
 ## 安装
 
@@ -89,19 +92,25 @@ sdkvm go install 1.24             # 安装 Go 1.24 线最新补丁版
 sdkvm go use 1.24                 # 切换（更新 GOROOT / PATH）
 go version
 
+# Flutter（flutter 子命令组）
+sdkvm flutter install 3.47        # 安装 3.47 线最新补丁版（stable 通道）
+sdkvm flutter use 3.47            # 切换（更新 FLUTTER_ROOT / PATH）
+flutter --version
+
 # 混合使用
 sdkvm current                     # 同时显示 java 与 go 的当前版本
 sdkvm java install 21 --vendor zulu
 sdkvm java use zulu-21
 sdkvm ls                          # 已装的 Java
 sdkvm go ls                       # 已装的 Go
+sdkvm flutter ls                  # 已装的 Flutter
 sdkvm uninstall zulu-21
 sdkvm go uninstall 1.24
 ```
 
 ## 命令参考
 
-Java 用裸命令（`sdkvm install …`）或 `sdkvm java …` 子命令组，两者等价；Go 用 `sdkvm go …`。下表以 Java 为例：
+Java 用裸命令（`sdkvm install …`）或 `sdkvm java …` 子命令组，两者等价；Go / Flutter 用 `sdkvm go …` / `sdkvm flutter …`。下表以 Java 为例：
 
 ### `sdkvm install <version>`
 
@@ -117,7 +126,7 @@ sdkvm installed Temurin 21.0.12.1 → ~/.sdkvm/jdks/temurin-21.0.12.1
 
 | 选项 | 说明 |
 |---|---|
-| `--vendor <id>` | 指定发行版：`temurin`（默认）/ `zulu` / `corretto`；Go 只有 `golang` |
+| `--vendor <id>` | 指定发行版：`temurin`（默认）/ `zulu` / `corretto`；Go 只有 `golang`，Flutter 只有 `flutter` |
 | `--force` | 已安装时重新安装 |
 
 已安装的版本会直接跳过；重复安装需加 `--force`。
@@ -130,6 +139,7 @@ sdkvm installed Temurin 21.0.12.1 → ~/.sdkvm/jdks/temurin-21.0.12.1
 sdkvm use 21                      # 切换到已安装的 21 最新补丁版
 sdkvm use temurin-21.0.5+11       # 切换到精确版本
 sdkvm go use 1.24.5               # Go 精确版本
+sdkvm flutter use 3.47.5          # Flutter 精确版本
 ```
 
 > macOS / Linux 下首次执行会在 shell 配置文件中追加初始化代码块，**重开终端（或 `source ~/.zshrc`）后生效**；之后每次切换即时生效。详见[切换机制](#切换机制)。
@@ -149,14 +159,14 @@ $ sdkvm go ls
 并行拉取全部厂商的可安装版本列表。每行名称带厂商前缀，**可直接复制给 `install`**：
 
 ```console
-$ sdkvm go ls -r
+$ sdkvm flutter ls -r
 
-# Go (official)
-  golang-1.27  latest: golang-1.27.1
-  golang-1.26  latest: golang-1.26.8
+# Flutter (official)
+  flutter-3.47  latest: flutter-3.47.5
+  flutter-3.44  latest: flutter-3.44.9
   ...
 
-# install with: sdkvm go install <name>
+# install with: sdkvm flutter install <name>
 ```
 
 | 选项 | 说明 |
@@ -173,6 +183,8 @@ java: temurin-21.0.12.1
   JAVA_HOME → ~/.sdkvm/jdks/temurin-21.0.12.1
 go: golang-1.24.5
   GOROOT → ~/.sdkvm/gos/golang-1.24.5
+flutter: flutter-3.47.5
+  FLUTTER_ROOT → ~/.sdkvm/flutters/flutter-3.47.5
 ```
 
 ### `sdkvm uninstall <version>`
@@ -181,7 +193,7 @@ go: golang-1.24.5
 
 ### `sdkvm mirror <action> [vendor] [url]`
 
-管理下载镜像，详见[镜像加速](#镜像加速国内用户)。Java 与 Go 分别用 `sdkvm mirror …` 与 `sdkvm go mirror …`。
+管理下载镜像，详见[镜像加速](#镜像加速国内用户)。Java / Go / Flutter 分别用 `sdkvm mirror …`、`sdkvm go mirror …`、`sdkvm flutter mirror …`。
 
 | Action | 说明 |
 |---|---|
@@ -197,19 +209,20 @@ go: golang-1.24.5
 
 `install` / `use` / `uninstall` 共用版本语法，按 SDK 类型区分：
 
-| 语法 | Java 含义 | Go 含义 | 示例 |
-|---|---|---|---|
-| `<major>` | 该大版本最新补丁版（`21`） | — | `21` |
-| `<major.minor>` | — | 该 minor 线最新补丁版 | `1.24` |
-| `lts` | 最新 LTS 大版本 | —（Go 无 LTS） | `lts` |
-| `latest` | — | 全局最新稳定版 | `latest` |
-| `<full-version>` | 精确版本 / 前缀匹配 | 精确版本 | `21.0.5+11`、`1.24.5` |
-| `<vendor>-…` | 加厂商前缀限定发行版 | 同左 | `zulu-21`、`golang-1.24` |
+| 语法 | Java 含义 | Go 含义 | Flutter 含义 | 示例 |
+|---|---|---|---|---|
+| `<major>` | 该大版本最新补丁版（`21`） | — | —（裸大版本拒绝，建议 `latest`） | `21` |
+| `<major.minor>` | — | 该 minor 线最新补丁版 | 该 minor 线最新补丁版（stable 通道） | `1.24`、`3.47` |
+| `lts` | 最新 LTS 大版本 | —（无 LTS） | —（无 LTS） | `lts` |
+| `latest` | — | 全局最新稳定版 | stable 通道最新（不追 beta） | `latest` |
+| `<full-version>` | 精确版本 / 前缀匹配 | 精确版本 | 精确版本，可带 prerelease 段装 beta | `21.0.5+11`、`1.24.5`、`3.49.0-0.1.pre` |
+| `<vendor>-…` | 加厂商前缀限定发行版 | 同左 | 同左 | `zulu-21`、`golang-1.24`、`flutter-3.47` |
 
 匹配规则：
 
 - `21` 匹配该大版本下**已安装/可安装的最新补丁版**；`1.24` 同理匹配该线最新补丁版
 - `21.0.5` 做前缀匹配，可命中 `21.0.5+11`
+- Flutter 的 `latest` / `3.47` 只在 **stable** 通道解析；装 beta 需给完整 prerelease 版本号（`3.49.0-0.1.pre`）
 - 不带厂商前缀时使用默认发行版（可通过配置修改，见[配置文件](#配置文件)）
 
 ## 工作原理
@@ -222,8 +235,10 @@ go: golang-1.24.5
 ~/.sdkvm/
 ├── jdks/                    # Java：<vendor>-<version>，如 temurin-21.0.12.1
 ├── gos/                     # Go：golang-<version>，如 golang-1.24.5
+├── flutters/                # Flutter：flutter-<version>，如 flutter-3.47.5
 ├── current-java             # 指向当前 JAVA_HOME 的链接（Windows 上为 junction）
 ├── current-go               # 指向当前 GOROOT 的链接
+├── current-flutter          # 指向当前 FLUTTER_ROOT 的链接
 ├── config.json              # CLI 配置
 ├── cache/                   # 下载缓存（安装完成后自动清理）
 └── tmp/                     # 解压临时目录
@@ -245,13 +260,18 @@ case ":$PATH:" in *":$JAVA_HOME/bin:"*) ;; *) export PATH="$JAVA_HOME/bin:$PATH"
 export GOROOT="$HOME/.sdkvm/current-go"
 case ":$PATH:" in *":$GOROOT/bin:"*) ;; *) export PATH="$GOROOT/bin:$PATH";; esac
 # <<< sdkvm go init <<<
+
+# >>> sdkvm flutter init >>>
+export FLUTTER_ROOT="$HOME/.sdkvm/current-flutter"
+case ":$PATH:" in *":$FLUTTER_ROOT/bin:"*) ;; *) export PATH="$FLUTTER_ROOT/bin:$PATH";; esac
+# <<< sdkvm flutter init <<<
 ```
 
 之后每次 `use` 只更新符号链接，新开终端（或 `source ~/.zshrc`）即生效。
 
 **Windows**
 
-`%USERPROFILE%\.sdkvm\current-java` / `current-go` 为 junction；`use` 写入用户级 `JAVA_HOME` / `GOROOT`，并把 `%JAVA_HOME%\bin`、`%GOROOT%\bin` 追加到用户 PATH。通过注册表操作并原样保留 `REG_EXPAND_SZ` 类型与 `%VAR%` 引用，避免 `setx` 的 1024 字符截断问题。需要**重开终端**生效。
+`%USERPROFILE%\.sdkvm\current-java` / `current-go` 为 junction；`use` 写入用户级 `JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT`，并把 `%JAVA_HOME%\bin`、`%GOROOT%\bin`、`%FLUTTER_ROOT%\bin` 追加到用户 PATH。通过注册表操作并原样保留 `REG_EXPAND_SZ` 类型与 `%VAR%` 引用，避免 `setx` 的 1024 字符截断问题。需要**重开终端**生效。
 
 ### 数据迁移
 
@@ -269,7 +289,8 @@ case ":$PATH:" in *":$GOROOT/bin:"*) ;; *) export PATH="$GOROOT/bin:$PATH";; esa
   "defaultVendor": "temurin",
   "mirror": {
     "temurin": "https://mirrors.nju.edu.cn/adoptium",
-    "golang": "https://golang.google.cn/dl"
+    "golang": "https://golang.google.cn/dl",
+    "flutter": "https://mirror.nju.edu.cn/flutter/flutter_infra_release"
   }
 }
 ```
@@ -289,11 +310,12 @@ case ":$PATH:" in *":$GOROOT/bin:"*) ;; *) export PATH="$GOROOT/bin:$PATH";; esa
 
 ## 镜像加速（国内用户）
 
-Temurin 默认从 GitHub 下载、Go 默认从 go.dev 下载，国内网络建议切换到镜像：
+Temurin 默认从 GitHub 下载、Go 默认从 go.dev 下载、Flutter 默认从 storage.googleapis.com 下载，国内网络建议切换到镜像：
 
 ```sh
-sdkvm mirror set temurin https://mirrors.nju.edu.cn/adoptium     # Java
-sdkvm go mirror set golang https://golang.google.cn/dl           # Go
+sdkvm mirror set temurin https://mirrors.nju.edu.cn/adoptium                            # Java
+sdkvm go mirror set golang https://golang.google.cn/dl                                  # Go
+sdkvm flutter mirror set flutter https://mirror.nju.edu.cn/flutter/flutter_infra_release  # Flutter
 ```
 
 也可以用环境变量临时指定（不写入配置）：
@@ -302,12 +324,12 @@ sdkvm go mirror set golang https://golang.google.cn/dl           # Go
 SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 ```
 
-> 镜像仅替换 tarball 下载地址，版本元数据始终走官方 API。Go 镜像根 URL 兼容 `https://golang.google.cn/dl`（官方中国站）与 `https://mirrors.aliyun.com/golang`（文件名直接拼接）；Zulu 与 Corretto 由官方 CDN 直接分发，暂不支持镜像。
+> 镜像仅替换 tarball 下载地址，版本元数据始终走官方 API（校验和亦来自官方，可交叉验证镜像文件）。Go 镜像根 URL 兼容 `https://golang.google.cn/dl`（官方中国站）与 `https://mirrors.aliyun.com/golang`（文件名直接拼接）；Flutter 镜像为桶前缀替换（已验证 [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release)）；Zulu 与 Corretto 由官方 CDN 直接分发，暂不支持镜像。
 
 ## 安全性
 
-- 下载地址通过**官方 API** 解析（Adoptium API / Azul Metadata API / Corretto 官方分发 / go.dev/dl JSON API）
-- tarball 尽力做 **SHA-256 校验**（Go 源校验和内联于 API，强制校验；其他源校验源不可达时警告放行）
+- 下载地址通过**官方 API** 解析（Adoptium API / Azul Metadata API / Corretto 官方分发 / go.dev/dl JSON API / Flutter releases 清单）
+- tarball 尽力做 **SHA-256 校验**（Go 与 Flutter 校验和内联于 API，强制校验；其他源校验源不可达时警告放行）
 - 解压前校验归档结构，且只解压到全新空目录，防止路径穿越
 
 ## 卸载
@@ -317,9 +339,9 @@ npm uninstall -g sdkvm
 rm -rf ~/.sdkvm       # 删除 SDK 数据目录
 ```
 
-并删除 shell 配置文件中 `>>> sdkvm java init >>>`、`>>> sdkvm go init >>>` 各自到 `<<< … <<<` 之间的标记块。
+并删除 shell 配置文件中 `>>> sdkvm java init >>>`、`>>> sdkvm go init >>>`、`>>> sdkvm flutter init >>>` 各自到 `<<< … <<<` 之间的标记块。
 
-Windows 用户额外需要：在系统设置中删除 `JAVA_HOME` / `GOROOT`，并从用户 PATH 移除 `%JAVA_HOME%\bin`、`%GOROOT%\bin`。
+Windows 用户额外需要：在系统设置中删除 `JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT`，并从用户 PATH 移除 `%JAVA_HOME%\bin`、`%GOROOT%\bin`、`%FLUTTER_ROOT%\bin`。
 
 ## 开发
 

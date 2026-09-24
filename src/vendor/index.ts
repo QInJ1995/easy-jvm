@@ -4,16 +4,19 @@ import { temurinVendor } from './temurin.js';
 import { zuluVendor } from './zulu.js';
 import { correttoVendor } from './corretto.js';
 import { golangVendor } from './golang.js';
+import { flutterVendor } from './flutter.js';
 import type { SdkvmConfig } from '../core/config.js';
 import { SdkvmError } from '../util/errors.js';
 
 /** 按 SDK 类型分组的有序厂商表（[0] 为该类型默认厂商） */
 export const JAVA_VENDORS: readonly Vendor[] = [temurinVendor, zuluVendor, correttoVendor];
 export const GO_VENDORS: readonly Vendor[] = [golangVendor];
+export const FLUTTER_VENDORS: readonly Vendor[] = [flutterVendor];
 
 export function vendorsFor(type: SdkTypeId): readonly Vendor[] {
   if (type === 'java') return JAVA_VENDORS;
   if (type === 'go') return GO_VENDORS;
+  if (type === 'flutter') return FLUTTER_VENDORS;
   throw new SdkvmError(`Unknown SDK type: ${type}`);
 }
 

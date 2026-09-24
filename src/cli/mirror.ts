@@ -9,6 +9,7 @@ import { cmdPath } from './cmdname.js';
 const RECOMMENDED: Record<string, string> = {
   temurin: 'https://mirrors.nju.edu.cn/adoptium',
   golang: 'https://golang.google.cn/dl',
+  flutter: 'https://mirror.nju.edu.cn/flutter/flutter_infra_release',
 };
 
 export function mirrorCommand(

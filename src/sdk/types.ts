@@ -1,8 +1,8 @@
 import type { Platform } from '../core/platform.js';
 import type { ReleaseLine, SdkVersion, UserSpec, Vendor, VendorPlatform, VersionSpec } from '../vendor/types.js';
 
-/** SDK 类型 id：java / go（未来可扩展） */
-export type SdkTypeId = 'java' | 'go';
+/** SDK 类型 id：java / go / flutter（未来可扩展） */
+export type SdkTypeId = 'java' | 'go' | 'flutter';
 
 /**
  * SDK 类型描述：目录布局、版本语法、环境变量、探测方式全部按类型参数化，
@@ -18,7 +18,7 @@ export interface SdkTypeSpec {
   readonly currentLinkName: string;
   /** 切换时导出的环境变量名：JAVA_HOME / GOROOT */
   readonly envVar: string;
-  /** 是否支持 lts 语义（java 有 LTS，go 没有） */
+  /** 是否支持 lts 语义（java 有 LTS，go/flutter 没有） */
   readonly supportsLts: boolean;
   /** 有序厂商列表，[0] 为默认厂商 */
   readonly vendors: readonly Vendor[];

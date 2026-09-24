@@ -7,7 +7,7 @@ export interface VendorPlatform {
   arch: 'aarch64' | 'x64';
 }
 
-/** 版本线：java 一个 major 一条线（key "21"），go 一条 minor 线（key "1.24"） */
+/** 版本线：java 一个 major 一条线（key "21"），go/flutter 一条 minor 线（key "1.24" / "3.47"） */
 export interface ReleaseLine {
   key: string;
   lts: boolean;
@@ -25,7 +25,7 @@ export interface ResolvedArtifact {
   downloadUrl: string;
   /** sha256 校验信息；尽力校验，缺失时 warn 放行 */
   checksum: { kind: 'sha256'; url?: string; expected?: string } | null;
-  archive: 'tar.gz' | 'zip';
+  archive: 'tar.gz' | 'tar.xz' | 'zip';
 }
 
 export interface Vendor {

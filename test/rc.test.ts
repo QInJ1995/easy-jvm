@@ -60,3 +60,21 @@ describe('rc block', () => {
     }
   });
 });
+
+
+describe('flutter rc block', () => {
+  it('exports FLUTTER_ROOT pointing at current-flutter', () => {
+    const block = rcBlock('flutter');
+    expect(block).toContain('FLUTTER_ROOT=');
+    expect(block).toContain('current-flutter');
+    expect(block).toContain('case ":$PATH:"');
+  });
+
+  it('java / go / flutter blocks coexist independently', () => {
+    let content = upsertRcContent('export A=1\n', 'java');
+    content = upsertRcContent(content, 'flutter');
+    expect(content).toContain(rcBegin('java'));
+    expect(content).toContain('current-flutter');
+    expect(content).toContain('export A=1');
+  });
+});

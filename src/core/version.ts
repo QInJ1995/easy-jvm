@@ -205,3 +205,70 @@ export function parseGoUserSpec(input: string): UserSpec {
     hint: 'Expected: 1.24, 1.24.5, latest, or with vendor prefix like golang-1.24',
   });
 }
+
+// —— flutter 解析 ——
+
+export const FLUTTER_VENDOR_IDS = ['flutter'] as const;
+
+/** 解析 flutter 版本串：容忍 "flutter-" 前缀与旧版 v 前缀（v0.1.6）；prerelease（3.49.0-0.1.pre）→ extra */
+export function parseFlutterVersion(vendor: VendorId, input: string): SdkVersion {
+  const raw = input.trim();
+  const s = raw.replace(/^flutter-/i, '').replace(/^v/i, '');
+  const m = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(s);
+  if (!m || !m[1] || !m[2] || !m[3]) {
+    throw new SdkvmError(`Invalid Flutter version: "${input}"`, {
+      hint: 'Expected forms: 3.47, 3.47.5, 3.49.0-0.1.pre, latest',
+    });
+  }
+  return {
+    vendor,
+    major: Number(m[1]),
+    minor: Number(m[2]),
+    patch: Number(m[3]),
+    extra: m[4] ?? null,
+    build: null,
+    raw,
+  };
+}
+
+/** flutter 不折叠版本段：prerelease 以 -extra 原样展示 */
+export function formatFlutterVersion(v: SdkVersion): string {
+  const base = `${v.major}.${v.minor}.${v.patch ?? 0}`;
+  return v.extra ? `${base}-${v.extra}` : base;
+}
+
+/** flutter 安装目录名 → 版本；不匹配返回 null */
+export function parseFlutterDirName(dir: string): SdkVersion | null {
+  const m = new RegExp(`^(${FLUTTER_VENDOR_IDS.join('|')})-(.+)$`).exec(dir);
+  if (!m || !m[1] || !m[2]) return null;
+  try {
+    return parseFlutterVersion(m[1], m[2]);
+  } catch {
+    return null;
+  }
+}
+
+/** flutter 版本语法：3.47（minor 线最新，stable 通道）/ 3.47.5（精确，可含 prerelease）/ latest，可带 flutter- 前缀 */
+export function parseFlutterUserSpec(input: string): UserSpec {
+  let s = input.trim().toLowerCase();
+  let vendor: VendorId | undefined;
+  const m = new RegExp(`^(${FLUTTER_VENDOR_IDS.join('|')})-(.+)$`).exec(s);
+  if (m && m[1] && m[2]) {
+    vendor = m[1];
+    s = m[2];
+  }
+  if (s === 'latest') return { vendor, spec: { kind: 'latest' } };
+  if (/^\d+\.\d+\.\d+(-[0-9a-z.\-]+)?$/.test(s)) return { vendor, spec: { kind: 'full', version: s } };
+  const line = /^(\d+)\.(\d+)$/.exec(s);
+  if (line && line[1] && line[2]) {
+    return { vendor, spec: { kind: 'line', major: Number(line[1]), minor: Number(line[2]) } };
+  }
+  if (/^\d+$/.test(s)) {
+    throw new SdkvmError(`Invalid Flutter version: "${input}"`, {
+      hint: 'Bare major is ambiguous — use "latest" or a minor line like "3.47"',
+    });
+  }
+  throw new SdkvmError(`Invalid Flutter version: "${input}"`, {
+    hint: 'Expected: 3.47, 3.47.5, 3.49.0-0.1.pre, latest, or with vendor prefix like flutter-3.47',
+  });
+}

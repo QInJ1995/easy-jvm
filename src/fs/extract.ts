@@ -5,10 +5,10 @@ import type { Platform } from '../core/platform.js';
 
 const WIN_TAR = 'C:\\Windows\\System32\\tar.exe';
 
-/** 解压 tar.gz / zip 到全新空目录（降低路径穿越面） */
+/** 解压 tar.gz / tar.xz / zip 到全新空目录（降低路径穿越面） */
 export async function extractArchive(
   archiveFile: string,
-  archiveType: 'tar.gz' | 'zip',
+  archiveType: 'tar.gz' | 'tar.xz' | 'zip',
   destDir: string,
   platform: Platform,
 ): Promise<void> {

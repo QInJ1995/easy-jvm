@@ -125,5 +125,11 @@ jobs:
           node dist/index.js go mirror set golang https://golang.google.cn/dl
           node dist/index.js go mirror show
 
+      - name: flutter resolve smoke (manifest only, no download)
+        run: |
+          node dist/index.js flutter ls -r
+          node dist/index.js flutter mirror set flutter https://mirror.nju.edu.cn/flutter/flutter_infra_release
+          node dist/index.js flutter mirror show
+
       - name: uninstall go
         run: node dist/index.js go uninstall 1.24

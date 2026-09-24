@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   compareVersions,
+  formatFlutterVersion,
   formatGoVersion,
+  parseFlutterDirName,
+  parseFlutterUserSpec,
+  parseFlutterVersion,
   formatVersion,
   parseDirName,
   parseGoDirName,
@@ -157,5 +161,62 @@ describe('parseGoDirName', () => {
   it('rejects java dirs', () => {
     expect(parseGoDirName('temurin-21')).toBeNull();
     expect(parseGoDirName('random')).toBeNull();
+  });
+});
+
+
+describe('flutter version parsing', () => {
+  it('parses stable version', () => {
+    const v = parseFlutterVersion('flutter', '3.47.5');
+    expect([v.major, v.minor, v.patch]).toEqual([3, 47, 5]);
+    expect(v.extra).toBeNull();
+    expect(formatFlutterVersion(v)).toBe('3.47.5');
+  });
+
+  it('parses prerelease into extra', () => {
+    const v = parseFlutterVersion('flutter', '3.49.0-0.1.pre');
+    expect(v.extra).toBe('0.1.pre');
+    expect(formatFlutterVersion(v)).toBe('3.49.0-0.1.pre');
+  });
+
+  it('parses legacy v-prefixed versions', () => {
+    const v = parseFlutterVersion('flutter', 'v0.1.6');
+    expect([v.major, v.minor, v.patch]).toEqual([0, 1, 6]);
+    expect(formatFlutterVersion(v)).toBe('0.1.6');
+  });
+
+  it('strips flutter- prefix', () => {
+    const v = parseFlutterVersion('flutter', 'flutter-3.47.5');
+    expect(v.major).toBe(3);
+  });
+
+  it('user spec: line / full / prerelease / latest / vendor prefix', () => {
+    expect(parseFlutterUserSpec('3.47')).toEqual({ spec: { kind: 'line', major: 3, minor: 47 } });
+    expect(parseFlutterUserSpec('3.47.5')).toEqual({ spec: { kind: 'full', version: '3.47.5' } });
+    expect(parseFlutterUserSpec('3.49.0-0.1.pre')).toEqual({ spec: { kind: 'full', version: '3.49.0-0.1.pre' } });
+    expect(parseFlutterUserSpec('latest')).toEqual({ spec: { kind: 'latest' } });
+    expect(parseFlutterUserSpec('flutter-3.47')).toEqual({
+      vendor: 'flutter',
+      spec: { kind: 'line', major: 3, minor: 47 },
+    });
+  });
+
+  it('user spec: bare major rejected with hint', () => {
+    expect(() => parseFlutterUserSpec('3')).toThrow(SdkvmError);
+    let hint: string | undefined;
+    try {
+      parseFlutterUserSpec('3');
+    } catch (err) {
+      hint = (err as SdkvmError).hint;
+    }
+    expect(hint).toMatch(/Bare major is ambiguous/);
+  });
+
+  it('dir name parse round-trip', () => {
+    const v = parseFlutterDirName('flutter-3.49.0-0.1.pre');
+    expect(v?.vendor).toBe('flutter');
+    expect(formatFlutterVersion(v as never)).toBe('3.49.0-0.1.pre');
+    expect(parseFlutterDirName('golang-1.24.5')).toBeNull();
+    expect(parseFlutterDirName('flutter-abc')).toBeNull();
   });
 });

@@ -21,10 +21,11 @@ afterEach(() => {
 /** 构造一个可控响应：content-length/content-encoding 由用例指定，body 为明文 */
 function stubFetch(body: string, headers: Record<string, string>) {
   const calls: Array<Record<string, unknown>> = [];
-  globalThis.fetch = (async (_url: RequestInfo | URL, init?: RequestInit) => {
+  const fn = async (_input: unknown, init?: RequestInit) => {
     calls.push(init?.headers as Record<string, unknown>);
     return new Response(body, { status: 200, headers });
-  }) as typeof fetch;
+  };
+  globalThis.fetch = fn as unknown as typeof fetch;
   return calls;
 }
 

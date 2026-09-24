@@ -24,6 +24,7 @@ export async function downloadFile(
   const out = fs.createWriteStream(partFile);
   let bytes = 0;
   let total: number | null = null;
+  let encoded = false;
   let stalled = false;
   const ac = new AbortController();
   const timer = setTimeout(() => {
@@ -32,9 +33,15 @@ export async function downloadFile(
   }, IDLE_TIMEOUT_MS);
 
   try {
-    const res = await httpFetch(url, { signal: ac.signal });
+    // 显式 identity：部分 CDN 边缘会对归档做透明 gzip，解压后字节数与 content-length 不可比
+    const res = await httpFetch(url, {
+      signal: ac.signal,
+      headers: { 'accept-encoding': 'identity' },
+    });
     timer.refresh(); // 响应头到达，转入流式阶段
     total = Number(res.headers.get('content-length')) || null;
+    // 若服务端仍坚持压缩（undici 透明解压），长度校验失效，完整性交给 sha256
+    encoded = Boolean(res.headers.get('content-encoding'));
     if (!res.body) throw new SdkvmError(`Empty response body: ${url}`);
     for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
       timer.refresh();
@@ -67,7 +74,7 @@ export async function downloadFile(
     fs.rmSync(partFile, { force: true });
     throw new SdkvmError(`Download incomplete: 0 bytes`, { hint: url });
   }
-  if (total !== null && bytes !== total) {
+  if (total !== null && !encoded && bytes !== total) {
     fs.rmSync(partFile, { force: true });
     throw new SdkvmError(`Download incomplete: ${bytes}/${total} bytes`, { hint: url });
   }

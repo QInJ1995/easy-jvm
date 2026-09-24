@@ -1,6 +1,6 @@
 import type { MajorRelease, ResolvedArtifact, Vendor, VendorPlatform } from './types.js';
 import { httpJson } from '../net/http.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 import { LTS_MAJORS, formatVersion, parseVersion } from '../core/version.js';
 import { temurinVendor } from './temurin.js';
 
@@ -87,9 +87,9 @@ export const zuluVendor: Vendor = {
     if (spec.kind === 'lts') {
       const majors = await this.listMajors();
       const lts = majors.filter((m) => m.lts);
-      if (lts.length === 0) throw new JvmError('No Zulu LTS release found');
+      if (lts.length === 0) throw new SdkvmError('No Zulu LTS release found');
       const latest = lts[lts.length - 1];
-      if (!latest) throw new JvmError('No Zulu LTS release found');
+      if (!latest) throw new SdkvmError('No Zulu LTS release found');
       return this.resolve({ kind: 'major', major: latest.major }, platform);
     }
     const versionPrefix = spec.kind === 'major' ? String(spec.major) : spec.version;
@@ -99,7 +99,7 @@ export const zuluVendor: Vendor = {
     );
     const pick = pickPlainJdk(packages, platform, versionPrefix);
     if (!pick) {
-      throw new JvmError(`No Zulu JDK build matches "${versionPrefix}"`, {
+      throw new SdkvmError(`No Zulu JDK build matches "${versionPrefix}"`, {
         hint: 'Run `jvm ls -r` to see available versions.',
       });
     }

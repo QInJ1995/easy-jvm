@@ -6,7 +6,7 @@ import {
   parseUserSpec,
   parseVersion,
 } from '../src/core/version.js';
-import { JvmError } from '../src/util/errors.js';
+import { SdkvmError } from '../src/util/errors.js';
 
 describe('parseVersion', () => {
   it('parses temurin with build', () => {
@@ -45,8 +45,8 @@ describe('parseVersion', () => {
   });
 
   it('rejects garbage', () => {
-    expect(() => parseVersion('temurin', 'abc')).toThrow(JvmError);
-    expect(() => parseVersion('temurin', '21.x.5')).toThrow(JvmError);
+    expect(() => parseVersion('temurin', 'abc')).toThrow(SdkvmError);
+    expect(() => parseVersion('temurin', '21.x.5')).toThrow(SdkvmError);
   });
 });
 
@@ -90,6 +90,6 @@ describe('parseUserSpec', () => {
     expect(r.spec).toEqual({ kind: 'major', major: 21 });
   });
   it('invalid throws', () => {
-    expect(() => parseUserSpec('hello')).toThrow(JvmError);
+    expect(() => parseUserSpec('hello')).toThrow(SdkvmError);
   });
 });

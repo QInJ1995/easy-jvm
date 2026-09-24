@@ -1,5 +1,5 @@
 import type { VendorId } from '../vendor/types.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 
 /** 与 Adoptium available_lts_releases 对齐的 LTS major 集 */
 export const LTS_MAJORS = new Set([8, 11, 17, 21, 25]);
@@ -30,11 +30,11 @@ export function parseVersion(vendor: VendorId, input: string): JdkVersion {
 
   const segs = basePart.split('.').filter((x) => x.length > 0);
   if (segs.length === 0) {
-    throw new JvmError(`Invalid JDK version: "${input}"`);
+    throw new SdkvmError(`Invalid JDK version: "${input}"`);
   }
   const nums = segs.map((x) => Number(x));
   if (nums.some((n) => !Number.isInteger(n) || n < 0)) {
-    throw new JvmError(`Invalid JDK version: "${input}"`, {
+    throw new SdkvmError(`Invalid JDK version: "${input}"`, {
       hint: 'Expected forms: 21, 21.0.5, 21.0.5+11',
     });
   }
@@ -126,7 +126,7 @@ export function parseUserSpec(input: string): UserSpec {
   if (s === 'lts' || s === '--lts') return { vendor, spec: { kind: 'lts' } };
   if (/^\d+$/.test(s)) return { vendor, spec: { kind: 'major', major: Number(s) } };
   if (/^\d+(\.\d+)*(\+[0-9.]+)?$/.test(s)) return { vendor, spec: { kind: 'full', version: s } };
-  throw new JvmError(`Invalid version: "${input}"`, {
+  throw new SdkvmError(`Invalid version: "${input}"`, {
     hint: 'Expected: 21, lts, 21.0.5, 21.0.5+11, or with vendor prefix like temurin-21',
   });
 }

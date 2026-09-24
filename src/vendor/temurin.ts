@@ -1,7 +1,7 @@
 import type { MajorRelease, ResolvedArtifact, Vendor } from './types.js';
 import type { VendorPlatform } from './types.js';
 import { httpJson, httpFetch } from '../net/http.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 import { formatVersion, parseVersion } from '../core/version.js';
 
 const API = 'https://api.adoptium.net';
@@ -20,17 +20,17 @@ async function resolveLatestRedirect(
   const url = `${API}/v3/binary/latest/${major}/ga/${os}/${arch}/jdk/hotspot/normal/eclipse`;
   const res = await httpFetch(url, { redirect: 'manual' });
   if (res.status !== 302 && res.status !== 307 && res.status !== 308) {
-    throw new JvmError(`Adoptium API returned ${res.status} for JDK ${major}`);
+    throw new SdkvmError(`Adoptium API returned ${res.status} for JDK ${major}`);
   }
   const location = res.headers.get('location');
-  if (!location) throw new JvmError(`Adoptium API returned no redirect for JDK ${major}`);
+  if (!location) throw new SdkvmError(`Adoptium API returned no redirect for JDK ${major}`);
   return location;
 }
 
 /** GitHub release URL → 版本串。jdk-21.0.12.1%2B1 → 21.0.12.1+1 */
 function versionFromGithubUrl(url: string): string {
   const m = /\/download\/jdk-([^/%]+(?:%2B[^/%]+)?)\//i.exec(url);
-  if (!m || !m[1]) throw new JvmError(`Cannot parse version from Adoptium URL: ${url}`);
+  if (!m || !m[1]) throw new SdkvmError(`Cannot parse version from Adoptium URL: ${url}`);
   return decodeURIComponent(m[1]);
 }
 

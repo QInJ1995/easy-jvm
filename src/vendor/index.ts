@@ -3,7 +3,7 @@ import { temurinVendor } from './temurin.js';
 import { zuluVendor } from './zulu.js';
 import { correttoVendor } from './corretto.js';
 import type { JvmConfig } from '../core/config.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 
 const REGISTRY: Record<VendorId, Vendor> = {
   temurin: temurinVendor,
@@ -23,7 +23,7 @@ export function allVendorIds(): VendorId[] {
 export function resolveVendorId(arg: string | undefined, config: JvmConfig): VendorId {
   const id = (arg ?? config.defaultVendor) as VendorId;
   if (!(id in REGISTRY)) {
-    throw new JvmError(`Unknown vendor: ${arg}`, {
+    throw new SdkvmError(`Unknown vendor: ${arg}`, {
       hint: `Available vendors: ${Object.keys(REGISTRY).join(', ')}`,
     });
   }

@@ -1,10 +1,11 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { envOverride } from './env.js';
 
-/** JVM_HOME 环境变量可覆盖根目录（测试与自定义安装位置用） */
+/** SDKVM_HOME（旧名 JVM_HOME 仍识别）可覆盖根目录（测试与自定义安装位置用） */
 export function jvmHome(): string {
-  return process.env.JVM_HOME ?? path.join(os.homedir(), '.jvm');
+  return envOverride('SDKVM_HOME', 'JVM_HOME') ?? path.join(os.homedir(), '.jvm');
 }
 
 export const paths = {

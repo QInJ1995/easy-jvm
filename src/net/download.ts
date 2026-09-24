@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { httpFetch } from './http.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 
 export interface DownloadResult {
   file: string;
@@ -24,7 +24,7 @@ export async function downloadFile(
   let bytes = 0;
 
   try {
-    if (!res.body) throw new JvmError(`Empty response body: ${url}`);
+    if (!res.body) throw new SdkvmError(`Empty response body: ${url}`);
     for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
       out.write(chunk);
       hash.update(chunk);
@@ -42,7 +42,7 @@ export async function downloadFile(
 
   if (total !== null && bytes !== total) {
     fs.rmSync(partFile, { force: true });
-    throw new JvmError(`Download incomplete: ${bytes}/${total} bytes`, { hint: url });
+    throw new SdkvmError(`Download incomplete: ${bytes}/${total} bytes`, { hint: url });
   }
   fs.renameSync(partFile, destFile);
   return { file: destFile, sha256: hash.digest('hex'), bytes };

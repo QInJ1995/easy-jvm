@@ -1,6 +1,6 @@
 import type { MajorRelease, ResolvedArtifact, Vendor, VendorPlatform } from './types.js';
 import { httpFetch } from '../net/http.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 import { LTS_MAJORS, formatVersion, parseVersion } from '../core/version.js';
 
 const BASE = 'https://corretto.aws/downloads';
@@ -28,12 +28,12 @@ async function resolveLatestVersion(major: number, platform: VendorPlatform): Pr
   const url = `${BASE}/latest/${latestFileName(major, platform)}`;
   const res = await httpFetch(url, { redirect: 'manual' });
   if (res.status !== 301 && res.status !== 302 && res.status !== 307 && res.status !== 308) {
-    throw new JvmError(`Corretto returned ${res.status} for JDK ${major}`);
+    throw new SdkvmError(`Corretto returned ${res.status} for JDK ${major}`);
   }
   const location = res.headers.get('location') ?? '';
   const m = /\/resources\/([^/]+)\//.exec(location);
   if (!m || !m[1]) {
-    throw new JvmError(`Cannot parse Corretto version from redirect: ${location}`);
+    throw new SdkvmError(`Cannot parse Corretto version from redirect: ${location}`);
   }
   return m[1];
 }
@@ -55,7 +55,7 @@ export const correttoVendor: Vendor = {
       version = await resolveLatestVersion(latestLts, platform);
     } else if (spec.kind === 'major') {
       if (!MAJORS.includes(spec.major)) {
-        throw new JvmError(`Corretto does not publish JDK ${spec.major}`, {
+        throw new SdkvmError(`Corretto does not publish JDK ${spec.major}`, {
           hint: `Available majors: ${MAJORS.join(', ')}`,
         });
       }
@@ -63,7 +63,7 @@ export const correttoVendor: Vendor = {
     } else {
       const v = parseVersion('corretto', spec.version);
       if (!MAJORS.includes(v.major)) {
-        throw new JvmError(`Corretto does not publish JDK ${v.major}`);
+        throw new SdkvmError(`Corretto does not publish JDK ${v.major}`);
       }
       version = spec.version;
     }

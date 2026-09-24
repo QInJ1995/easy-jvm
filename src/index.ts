@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { toJvmError } from './util/errors.js';
+import { toSdkvmError } from './util/errors.js';
 import { log } from './ui/log.js';
 import { installCommand } from './cli/install.js';
 import { useCommand } from './cli/use.js';
@@ -66,7 +66,7 @@ program
   .action(versionCommand);
 
 program.parseAsync(process.argv).catch((err: unknown) => {
-  const e = toJvmError(err);
+  const e = toSdkvmError(err);
   log.error(e.message);
   if (e.hint) log.info(e.hint);
   process.exitCode = e.exitCode;

@@ -1,6 +1,6 @@
 import { loadConfig, saveConfig } from '../core/config.js';
 import { log } from '../ui/log.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 import { allVendorIds } from '../vendor/index.js';
 
 const RECOMMENDED = {
@@ -25,16 +25,16 @@ export function mirrorCommand(
       vendor = 'temurin';
       url = urlOrVendor;
     }
-    if (!url) throw new JvmError('usage: jvm mirror set [vendor] <url>');
+    if (!url) throw new SdkvmError('usage: jvm mirror set [vendor] <url>');
     if (vendor !== 'temurin') {
-      throw new JvmError(`mirroring is only supported for temurin (got "${vendor}")`, {
+      throw new SdkvmError(`mirroring is only supported for temurin (got "${vendor}")`, {
         hint: `recommended: jvm mirror set temurin ${RECOMMENDED.temurin}`,
       });
     }
     try {
       new URL(url);
     } catch {
-      throw new JvmError(`invalid URL: ${url}`);
+      throw new SdkvmError(`invalid URL: ${url}`);
     }
     config.mirror.temurin = url.replace(/\/+$/, '');
     saveConfig(config);
@@ -44,7 +44,7 @@ export function mirrorCommand(
 
   if (action === 'unset') {
     const vendor = urlOrVendor ?? 'temurin';
-    if (vendor !== 'temurin') throw new JvmError(`mirroring is only supported for temurin`);
+    if (vendor !== 'temurin') throw new SdkvmError(`mirroring is only supported for temurin`);
     config.mirror.temurin = null;
     saveConfig(config);
     log.ok('mirror for temurin cleared (official source)');

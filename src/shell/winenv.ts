@@ -1,5 +1,5 @@
 import { run } from '../util/spawn.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 
 /** PowerShell 脚本用 EncodedCommand 传递，避免引号转义问题 */
 function encoded(ps: string): string[] {
@@ -53,6 +53,6 @@ export async function removeFromUserPathWin(): Promise<void> {
 
 export function assertWindows(): void {
   if (process.platform !== 'win32') {
-    throw new JvmError('This operation is Windows-only');
+    throw new SdkvmError('This operation is Windows-only');
   }
 }

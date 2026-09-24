@@ -10,7 +10,7 @@ import {
   type JdkVersion,
 } from './version.js';
 import { paths } from './paths.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 import { readCurrent } from '../fs/link.js';
 
 export interface InstalledJdk {
@@ -82,7 +82,7 @@ export function findInstalled(specInput: string, vendorArg?: VendorId): Installe
       .map((j) => `  ${j.version.vendor}-${formatVersion(j.version)}`)
       .join('\n');
     const want = spec.kind === 'full' ? spec.version : specInput;
-    throw new JvmError(`No installed JDK matches "${specInput}"`, {
+    throw new SdkvmError(`No installed JDK matches "${specInput}"`, {
       hint:
         (all.length > 0 ? `Installed:\n${installedList}\n` : '') +
         `Install one first: jvm install ${want}`,

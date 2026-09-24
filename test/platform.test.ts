@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { detectPlatform } from '../src/core/platform.js';
-import { JvmError } from '../src/util/errors.js';
+import { SdkvmError } from '../src/util/errors.js';
 
 describe('detectPlatform', () => {
   it('darwin arm64', () => {
@@ -17,7 +17,7 @@ describe('detectPlatform', () => {
     expect(detectPlatform({ platform: 'win32', arch: 'x64' })).toMatchObject({ os: 'windows', arch: 'x64' });
   });
   it('unsupported os/arch throw', () => {
-    expect(() => detectPlatform({ platform: 'freebsd', arch: 'x64' })).toThrow(JvmError);
-    expect(() => detectPlatform({ platform: 'linux', arch: 'arm' })).toThrow(JvmError);
+    expect(() => detectPlatform({ platform: 'freebsd', arch: 'x64' })).toThrow(SdkvmError);
+    expect(() => detectPlatform({ platform: 'linux', arch: 'arm' })).toThrow(SdkvmError);
   });
 });

@@ -1,6 +1,6 @@
 import type { ResolvedArtifact } from '../vendor/types.js';
 import { httpText } from './http.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 import { log } from '../ui/log.js';
 
 const HEX64 = /^[0-9a-f]{64}$/i;
@@ -45,7 +45,7 @@ export async function verifyChecksum(
     return;
   }
   if (expected !== actual.toLowerCase()) {
-    throw new JvmError(`Checksum mismatch for ${artifact.displayName}`, {
+    throw new SdkvmError(`Checksum mismatch for ${artifact.displayName}`, {
       hint: `expected ${expected}, got ${actual}`,
     });
   }

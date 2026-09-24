@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { JvmError } from './errors.js';
+import { SdkvmError } from './errors.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -18,7 +18,7 @@ export async function run(
   } catch (err) {
     const e = err as { stderr?: string; message?: string; code?: unknown };
     const detail = (e.stderr || e.message || '').split('\n')[0];
-    throw new JvmError(`Failed to run ${cmd}: ${detail}`, {
+    throw new SdkvmError(`Failed to run ${cmd}: ${detail}`, {
       hint: `args: ${args.join(' ')}`,
     });
   }

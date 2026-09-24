@@ -5,6 +5,7 @@ import { loadConfig } from '../core/config.js';
 import { withLock } from '../core/lock.js';
 import { ensureLayout, paths } from '../core/paths.js';
 import { parseUserSpec } from '../core/version.js';
+import { envOverride } from '../core/env.js';
 import { getVendor, resolveVendorId } from '../vendor/index.js';
 import { applyMirror } from '../vendor/mirror.js';
 import { downloadFile, cacheFileName } from '../net/download.js';
@@ -13,7 +14,7 @@ import { extractArchive, tmpExtractDir } from '../fs/extract.js';
 import { normalizeExtracted } from '../fs/layout.js';
 import { log } from '../ui/log.js';
 import { createProgress } from '../ui/progress.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 
 /** Windows 上杀软可能短暂锁住新解压的文件导致 rename 失败，重试兜底 */
 async function renameWithRetry(from: string, to: string, attempts = 3): Promise<void> {
@@ -41,7 +42,7 @@ export async function installCommand(
 
   log.info(`resolving ${vendor.label} ${specInput} for ${platform.os}/${platform.arch} ...`);
   const resolved = await vendor.resolve(spec, platform);
-  const mirrorRoot = process.env.JVM_MIRROR ?? config.mirror[vendorId] ?? null;
+  const mirrorRoot = envOverride('SDKVM_MIRROR', 'JVM_MIRROR') ?? config.mirror[vendorId] ?? null;
   const artifact = applyMirror(resolved, platform, mirrorRoot);
 
   const finalDir = path.join(paths.jdks(), artifact.dirName);
@@ -81,7 +82,7 @@ export async function installCommand(
     } catch (err) {
       fs.rmSync(finalTmp, { recursive: true, force: true });
       fs.rmSync(tmp, { recursive: true, force: true });
-      throw err instanceof JvmError ? err : err;
+      throw err instanceof SdkvmError ? err : err;
     } finally {
       fs.rmSync(dest, { force: true });
       fs.rmSync(paths.tmp(), { recursive: true, force: true });

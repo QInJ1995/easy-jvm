@@ -1,6 +1,7 @@
 import pc from 'picocolors';
+import { envOverride } from '../core/env.js';
 
-const isQuiet = () => Boolean(process.env.JVM_QUIET);
+const isQuiet = () => Boolean(envOverride('SDKVM_QUIET', 'JVM_QUIET'));
 
 const label = {
   info: pc.cyan('jvm'),

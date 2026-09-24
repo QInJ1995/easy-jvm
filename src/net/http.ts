@@ -1,10 +1,11 @@
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
+import { getVersion } from '../cli/misc.js';
 
-const UA = 'jvm-cli/0.1 (npm easy-jvm)';
+const UA = `sdkvm/${getVersion()} (npm easy-jvm)`;
 const CONNECT_TIMEOUT_MS = 30_000;
 const RETRIES = 3;
 
-export class HttpError extends JvmError {
+export class HttpError extends SdkvmError {
   constructor(message: string, readonly status: number, readonly url: string) {
     super(message, { hint: `URL: ${url}` });
     this.name = 'HttpError';
@@ -46,8 +47,8 @@ export async function httpFetch(url: string, init: RequestInit = {}): Promise<Re
       if (attempt < RETRIES) await sleep(500 * 2 ** (attempt - 1));
     }
   }
-  if (lastErr instanceof JvmError) throw lastErr;
-  throw new JvmError(`Network error after ${RETRIES} attempts: ${url}`, {
+  if (lastErr instanceof SdkvmError) throw lastErr;
+  throw new SdkvmError(`Network error after ${RETRIES} attempts: ${url}`, {
     hint: lastErr instanceof Error ? lastErr.message : String(lastErr),
   });
 }

@@ -2,7 +2,7 @@ import { currentJdk, listInstalled } from '../core/registry.js';
 import { formatVersion } from '../core/version.js';
 import { allVendorIds, getVendor, resolveVendorId } from '../vendor/index.js';
 import { loadConfig } from '../core/config.js';
-import { toJvmError } from '../util/errors.js';
+import { toSdkvmError } from '../util/errors.js';
 import { log } from '../ui/log.js';
 
 export async function lsCommand(opts: {
@@ -41,7 +41,7 @@ async function listRemote(opts: { vendor?: string }): Promise<void> {
         return { vendor, majors };
       } catch (err) {
         // 单个厂商失败不拖垮整个列表
-        log.warn(`${vendor.label}: list unavailable (${toJvmError(err).message})`);
+        log.warn(`${vendor.label}: list unavailable (${toSdkvmError(err).message})`);
         return null;
       }
     }),

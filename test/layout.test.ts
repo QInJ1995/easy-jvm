@@ -6,7 +6,7 @@ import { promisify } from 'node:util';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { extractArchive } from '../src/fs/extract.js';
 import { normalizeExtracted } from '../src/fs/layout.js';
-import { JvmError } from '../src/util/errors.js';
+import { SdkvmError } from '../src/util/errors.js';
 import type { Platform } from '../src/core/platform.js';
 
 const execFileAsync = promisify(execFile);
@@ -56,7 +56,7 @@ describe('extract + normalize', () => {
     expect(javaHome.endsWith('jdk-21.0.5')).toBe(true);
   });
 
-  it('invalid archive (no bin/java) throws JvmError', async () => {
+  it('invalid archive (no bin/java) throws SdkvmError', async () => {
     const src = path.join(work, 'src-bad');
     fs.mkdirSync(path.join(src, 'some-dir'), { recursive: true });
     fs.writeFileSync(path.join(src, 'some-dir', 'readme.txt'), 'hi');
@@ -65,6 +65,6 @@ describe('extract + normalize', () => {
 
     const dest = path.join(work, 'out-bad');
     await extractArchive(tgz, 'tar.gz', dest, MAC);
-    expect(() => normalizeExtracted(dest, MAC)).toThrow(JvmError);
+    expect(() => normalizeExtracted(dest, MAC)).toThrow(SdkvmError);
   });
 });

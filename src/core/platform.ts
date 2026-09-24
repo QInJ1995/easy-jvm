@@ -1,4 +1,4 @@
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 
 /** 三家 vendor 通用的平台描述 */
 export interface Platform {
@@ -27,12 +27,12 @@ export function detectPlatform(override?: { platform?: string; arch?: string }):
   const os = osMap[rawPlatform];
   const arch = archMap[rawArch];
   if (!os) {
-    throw new JvmError(`Unsupported operating system: ${rawPlatform}`, {
+    throw new SdkvmError(`Unsupported operating system: ${rawPlatform}`, {
       hint: 'jvm currently supports macOS, Linux and Windows.',
     });
   }
   if (!arch) {
-    throw new JvmError(`Unsupported CPU architecture: ${rawArch}`, {
+    throw new SdkvmError(`Unsupported CPU architecture: ${rawArch}`, {
       hint: 'jvm currently supports aarch64 (Apple Silicon / ARM) and x64.',
     });
   }

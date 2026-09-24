@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { findInstalled, listInstalled } from '../src/core/registry.js';
-import { JvmError } from '../src/util/errors.js';
+import { SdkvmError } from '../src/util/errors.js';
 
 let home: string;
 
@@ -66,8 +66,8 @@ describe('registry', () => {
       findInstalled('99');
       expect.unreachable();
     } catch (e) {
-      expect(e).toBeInstanceOf(JvmError);
-      expect((e as JvmError).hint).toContain('temurin-21.0.5+11');
+      expect(e).toBeInstanceOf(SdkvmError);
+      expect((e as SdkvmError).hint).toContain('temurin-21.0.5+11');
     }
   });
 });

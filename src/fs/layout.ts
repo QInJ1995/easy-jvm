@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { Platform } from '../core/platform.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 
 export interface NormalizedJdk {
   /** 解压出的 JDK 根目录（含 release 文件那一层；macOS 为 bundle 根） */
@@ -37,7 +37,7 @@ export function normalizeExtracted(tmpDir: string, platform: Platform): Normaliz
   }
 
   if (!fs.existsSync(javaBin(javaHome, platform))) {
-    throw new JvmError('Archive does not look like a valid JDK (bin/java not found)', {
+    throw new SdkvmError('Archive does not look like a valid JDK (bin/java not found)', {
       hint: `expected ${javaBin(javaHome, platform)}`,
     });
   }

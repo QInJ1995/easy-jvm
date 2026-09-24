@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { paths } from './paths.js';
-import { JvmError } from '../util/errors.js';
+import { SdkvmError } from '../util/errors.js';
 
 const STALE_MS = 5 * 60 * 1000;
 
@@ -22,7 +22,7 @@ export function acquireLock(): void {
         fs.rmSync(lockDir, { recursive: true, force: true });
         return acquireLock();
       }
-      throw new JvmError('Another jvm operation is in progress', {
+      throw new SdkvmError('Another jvm operation is in progress', {
         hint: 'If this is wrong, remove ~/.jvm/.lock manually.',
       });
     }

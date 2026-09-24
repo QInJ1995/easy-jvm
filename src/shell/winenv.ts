@@ -17,9 +17,27 @@ function currentLinkWin(type: SdkTypeId): string {
   return `%USERPROFILE%\\${rel.split(path.sep).join('\\')}`;
 }
 
-/** 写用户级环境变量（值短，setx 无截断风险） */
+/** WM_SETTINGCHANGE 广播，让 Explorer 等读取新环境变量 */
+function broadcastPs(): string[] {
+  return [
+    "$sig='[DllImport(\"user32.dll\", SetLastError=true, CharSet=CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);'",
+    'Add-Type -MemberDefinition $sig -Name NativeMethods -Namespace Win32',
+    '$r=[UIntPtr]::Zero',
+    '[Win32.NativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x1A, [UIntPtr]::Zero, \'Environment\', 2, 5000, [ref]$r) | Out-Null',
+  ];
+}
+
+/** 写用户级环境变量为 REG_EXPAND_SZ 并广播。
+ * 值含 %USERPROFILE% 引用，必须 REG_EXPAND_SZ 才会在登录/广播时展开——setx 会把类型写成 REG_SZ，弃用。 */
 export async function setEnvWin(name: string, value: string): Promise<void> {
-  await run('setx', [name, value]);
+  const escaped = value.replace(/'/g, "''");
+  const ps = [
+    "$k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment',$true)",
+    "if(-not $k){ throw 'no Environment key' }",
+    `$k.SetValue('${name.replace(/'/g, "''")}', '${escaped}', [Microsoft.Win32.RegistryValueKind]::ExpandString)`,
+    ...broadcastPs(),
+  ].join('\n');
+  await run('powershell.exe', encoded(ps));
 }
 
 /** 写该类型的环境变量（JAVA_HOME / GOROOT → current 链接） */
@@ -47,10 +65,7 @@ export async function ensureUserPathWin(entry: string): Promise<void> {
     "  if($k.GetValueKind('Path') -eq [Microsoft.Win32.RegistryValueKind]::String){ $kind=[Microsoft.Win32.RegistryValueKind]::String }",
     "  $k.SetValue('Path', ($parts -join ';'), $kind)",
     "}",
-    "$sig='[DllImport(\"user32.dll\", SetLastError=true, CharSet=CharSet.Auto)] public static extern IntPtr SendMessageTimeout(IntPtr hWnd, uint Msg, UIntPtr wParam, string lParam, uint fuFlags, uint uTimeout, out UIntPtr lpdwResult);'",
-    'Add-Type -MemberDefinition $sig -Name NativeMethods -Namespace Win32',
-    '$r=[UIntPtr]::Zero',
-    '[Win32.NativeMethods]::SendMessageTimeout([IntPtr]0xffff, 0x1A, [UIntPtr]::Zero, \'Environment\', 2, 5000, [ref]$r) | Out-Null',
+    ...broadcastPs(),
   ].join('\n');
   await run('powershell.exe', encoded(ps));
 }

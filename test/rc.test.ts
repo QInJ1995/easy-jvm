@@ -88,3 +88,11 @@ describe('node rc block', () => {
     expect(block).toContain('"$HOME/.sdkvm/current-node"');
   });
 });
+
+describe('rc separator safety', () => {
+  it('no backslash separators in any block (shell syntax)', () => {
+    for (const t of ['java', 'go', 'flutter', 'node'] as const) {
+      expect(rcBlock(t)).not.toMatch(/\\/);
+    }
+  });
+});

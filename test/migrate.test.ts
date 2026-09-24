@@ -71,7 +71,8 @@ describe('migrateLegacyHomeIfNeeded', () => {
     expect(out).toContain('export A=1');
     // newHome 在 home 之外（测试注入），rc 块按设计回退为绝对路径；
     // 真实迁移（~/.sdkvm）时写入的是 $HOME/.sdkvm/current-java
-    expect(out).toContain(`JAVA_HOME="${path.join(newHome, 'current-java')}"`);
+    // rc 块内分隔符恒为 /（Windows 上 path.join 给 \）
+    expect(out).toContain(`JAVA_HOME="${path.join(newHome, 'current-java').split(path.sep).join('/')}"`);
   });
 
   it('rc without legacy block is untouched', async () => {

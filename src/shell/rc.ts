@@ -22,7 +22,8 @@ export function rcEnd(type: SdkTypeId): string {
 /** 标记块内容：环境变量指向该类型的 current 链接；case 守卫防 PATH 重复叠加 */
 export function rcBlock(type: SdkTypeId): string {
   const spec = getSdkType(type);
-  const binSuffix = spec.envBinSuffix(detectPlatform());
+  // envBinSuffix 在 Windows 为注册表 PATH 用的 \\bin 形式；rc 是 shell 脚本，统一归一为 /
+  const binSuffix = spec.envBinSuffix(detectPlatform()).replace(/\\/g, '/');
   const abs = paths.current(type);
   const rel = path.relative(os.homedir(), abs);
   // rc 是 shell 脚本，分隔符永远用 /（Windows 上 path.relative 会给出 \）

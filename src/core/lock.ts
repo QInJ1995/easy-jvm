@@ -22,8 +22,8 @@ export function acquireLock(): void {
         fs.rmSync(lockDir, { recursive: true, force: true });
         return acquireLock();
       }
-      throw new SdkvmError('Another jvm operation is in progress', {
-        hint: 'If this is wrong, remove ~/.jvm/.lock manually.',
+      throw new SdkvmError('Another sdkvm operation is in progress', {
+        hint: 'If this is wrong, remove ~/.sdkvm/.lock manually.',
       });
     }
     throw e;

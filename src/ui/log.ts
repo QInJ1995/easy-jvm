@@ -4,10 +4,10 @@ import { envOverride } from '../core/env.js';
 const isQuiet = () => Boolean(envOverride('SDKVM_QUIET', 'JVM_QUIET'));
 
 const label = {
-  info: pc.cyan('jvm'),
-  ok: pc.green('jvm'),
-  warn: pc.yellow('jvm'),
-  error: pc.red('jvm'),
+  info: pc.cyan('sdkvm'),
+  ok: pc.green('sdkvm'),
+  warn: pc.yellow('sdkvm'),
+  error: pc.red('sdkvm'),
 };
 
 export const log = {

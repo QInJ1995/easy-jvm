@@ -1,7 +1,7 @@
 import { SdkvmError } from '../util/errors.js';
 import { getVersion } from '../cli/misc.js';
 
-const UA = `sdkvm/${getVersion()} (npm easy-jvm)`;
+const UA = `sdkvm/${getVersion()} (npm sdkvm)`;
 const CONNECT_TIMEOUT_MS = 30_000;
 const RETRIES = 3;
 

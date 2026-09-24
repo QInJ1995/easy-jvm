@@ -8,13 +8,14 @@ import { lsCommand, currentCommand } from './cli/ls.js';
 import { uninstallCommand } from './cli/uninstall.js';
 import { mirrorCommand } from './cli/mirror.js';
 import { getVersion, versionCommand } from './cli/misc.js';
+import { migrateLegacyHomeIfNeeded } from './core/migrate.js';
 import { getSdkType } from './sdk/index.js';
 import type { SdkTypeId } from './sdk/types.js';
 
 const program = new Command();
 
 program
-  .name('jvm')
+  .name('sdkvm')
   .description('SDK version manager — install & switch JDKs (Temurin / Zulu / Corretto) and Go toolchains')
   .version(getVersion());
 
@@ -90,8 +91,13 @@ program.commands.find((c) => c.name() === 'current')?.action(() => currentComman
 
 program
   .command('version')
-  .description('print jvm CLI version')
+  .description('print sdkvm CLI version')
   .action(versionCommand);
+
+// 首次运行时自动迁移 easy-jvm 时代的 ~/.jvm → ~/.sdkvm（幂等）
+program.hook('preAction', async () => {
+  await migrateLegacyHomeIfNeeded();
+});
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const e = toSdkvmError(err);

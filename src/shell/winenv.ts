@@ -11,7 +11,7 @@ function encoded(ps: string): string[] {
   return ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(ps, 'utf16le').toString('base64')];
 }
 
-/** 当前链接的 %USERPROFILE% 相对形式，如 %USERPROFILE%\.jvm\current */
+/** 当前链接的 %USERPROFILE% 相对形式，如 %USERPROFILE%\.sdkvm\current-java */
 function currentLinkWin(type: SdkTypeId): string {
   const rel = path.relative(os.homedir(), paths.current(type));
   return `%USERPROFILE%\\${rel.split(path.sep).join('\\')}`;

@@ -6,7 +6,7 @@ describe('rc block', () => {
     const out = upsertRcContent('', 'java');
     expect(out).toContain(rcBegin('java'));
     expect(out).toContain(rcEnd('java'));
-    expect(out).toContain('export JAVA_HOME="$HOME/.jvm/current"');
+    expect(out).toContain('export JAVA_HOME="$HOME/.sdkvm/current-java"');
   });
 
   it('idempotent: exactly one block after two upserts', () => {

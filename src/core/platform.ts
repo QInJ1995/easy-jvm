@@ -28,12 +28,12 @@ export function detectPlatform(override?: { platform?: string; arch?: string }):
   const arch = archMap[rawArch];
   if (!os) {
     throw new SdkvmError(`Unsupported operating system: ${rawPlatform}`, {
-      hint: 'jvm currently supports macOS, Linux and Windows.',
+      hint: 'sdkvm currently supports macOS, Linux and Windows.',
     });
   }
   if (!arch) {
     throw new SdkvmError(`Unsupported CPU architecture: ${rawArch}`, {
-      hint: 'jvm currently supports aarch64 (Apple Silicon / ARM) and x64.',
+      hint: 'sdkvm currently supports aarch64 (Apple Silicon / ARM) and x64.',
     });
   }
   return { os, arch, rawPlatform, rawArch };

@@ -14,7 +14,7 @@ export const javaSdk: SdkTypeSpec = {
   id: 'java',
   label: 'Java (JDK)',
   installDirName: 'jdks',
-  currentLinkName: 'current',
+  currentLinkName: 'current-java',
   envVar: 'JAVA_HOME',
   supportsLts: true,
   vendors: JAVA_VENDORS,

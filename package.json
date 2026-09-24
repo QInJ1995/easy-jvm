@@ -1,10 +1,10 @@
 {
-  "name": "easy-jvm",
-  "version": "0.1.0",
-  "description": "JDK version manager (nvm for JDKs) — Temurin / Zulu / Corretto",
+  "name": "sdkvm",
+  "version": "1.0.0",
+  "description": "SDK version manager (nvm for SDKs) — Java (Temurin / Zulu / Corretto) & Go",
   "type": "module",
   "bin": {
-    "jvm": "dist/index.js"
+    "sdkvm": "dist/index.js"
   },
   "files": [
     "dist",
@@ -26,8 +26,12 @@
     "prepublishOnly": "npm test"
   },
   "keywords": [
+    "sdk",
     "jdk",
     "java",
+    "go",
+    "golang",
+    "goroot",
     "version-manager",
     "nvm",
     "temurin",

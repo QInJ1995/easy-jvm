@@ -17,7 +17,7 @@ export interface InstalledSdk {
   home: string;
 }
 
-/** 扫描安装根目录（如 ~/.jvm/jdks/），按版本升序 */
+/** 扫描安装根目录（如 ~/.sdkvm/jdks/），按版本升序 */
 export function listInstalled(type: SdkTypeId): InstalledSdk[] {
   const spec = getSdkType(type);
   const root = paths.sdks(type);

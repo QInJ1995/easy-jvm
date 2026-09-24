@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyMirror } from '../src/vendor/mirror.js';
 import { parseVersion } from '../src/core/version.js';
+import { parseGoVersion } from '../src/core/version.js';
 import type { ResolvedArtifact } from '../src/vendor/types.js';
 
 function artifact(url: string, vendorId: string = 'temurin'): ResolvedArtifact {
@@ -35,6 +36,34 @@ describe('applyMirror', () => {
 
   it('no mirror → untouched', () => {
     expect(applyMirror(artifact(GH), mac, null).downloadUrl).toBe(GH);
+  });
+
+  it('rewrites golang URL by filename concat (golang.google.cn)', () => {
+    const a: ResolvedArtifact = {
+      vendorId: 'golang',
+      version: parseGoVersion('golang', '1.24.5'),
+      dirName: 'golang-1.24.5',
+      displayName: 'Go 1.24.5',
+      downloadUrl: 'https://go.dev/dl/go1.24.5.darwin-arm64.tar.gz',
+      checksum: null,
+      archive: 'tar.gz',
+    };
+    const out = applyMirror(a, mac, 'https://golang.google.cn/dl');
+    expect(out.downloadUrl).toBe('https://golang.google.cn/dl/go1.24.5.darwin-arm64.tar.gz');
+  });
+
+  it('golang mirror root without /dl path works (aliyun)', () => {
+    const a: ResolvedArtifact = {
+      vendorId: 'golang',
+      version: parseGoVersion('golang', '1.24.5'),
+      dirName: 'golang-1.24.5',
+      displayName: 'Go 1.24.5',
+      downloadUrl: 'https://go.dev/dl/go1.24.5.linux-amd64.tar.gz',
+      checksum: null,
+      archive: 'tar.gz',
+    };
+    const out = applyMirror(a, mac, 'https://mirrors.aliyun.com/golang/');
+    expect(out.downloadUrl).toBe('https://mirrors.aliyun.com/golang/go1.24.5.linux-amd64.tar.gz');
   });
 
   it('non-temurin untouched', () => {

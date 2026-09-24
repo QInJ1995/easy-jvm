@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   compareVersions,
+  formatGoVersion,
   formatVersion,
   parseDirName,
+  parseGoDirName,
+  parseGoUserSpec,
+  parseGoVersion,
   parseUserSpec,
   parseVersion,
 } from '../src/core/version.js';
@@ -91,5 +95,67 @@ describe('parseUserSpec', () => {
   });
   it('invalid throws', () => {
     expect(() => parseUserSpec('hello')).toThrow(SdkvmError);
+  });
+});
+
+describe('parseGoVersion', () => {
+  it('parses 1.24.5', () => {
+    const v = parseGoVersion('golang', '1.24.5');
+    expect([v.major, v.minor, v.patch]).toEqual([1, 24, 5]);
+    expect(v.extra).toBeNull();
+    expect(v.build).toBeNull();
+  });
+
+  it('tolerates go/golang- prefixes', () => {
+    expect(parseGoVersion('golang', 'go1.24.5').patch).toBe(5);
+    expect(parseGoVersion('golang', 'golang-1.24.5').minor).toBe(24);
+  });
+
+  it('base release has null patch and formats without segment', () => {
+    const v = parseGoVersion('golang', 'go1.24');
+    expect(v.patch).toBeNull();
+    expect(formatGoVersion(v)).toBe('1.24');
+  });
+
+  it('rejects garbage and 4-segment', () => {
+    expect(() => parseGoVersion('golang', 'abc')).toThrow(SdkvmError);
+    expect(() => parseGoVersion('golang', '1.24.5.6')).toThrow(SdkvmError);
+  });
+
+  it('compare treats null patch as 0', () => {
+    const base = parseGoVersion('golang', '1.24');
+    const patch = parseGoVersion('golang', '1.24.1');
+    expect(compareVersions(base, patch)).toBeLessThan(0);
+  });
+});
+
+describe('parseGoUserSpec', () => {
+  it('line / full / latest', () => {
+    expect(parseGoUserSpec('1.24').spec).toEqual({ kind: 'line', major: 1, minor: 24 });
+    expect(parseGoUserSpec('1.24.5').spec).toEqual({ kind: 'full', version: '1.24.5' });
+    expect(parseGoUserSpec('latest').spec).toEqual({ kind: 'latest' });
+  });
+  it('golang- prefix', () => {
+    const r = parseGoUserSpec('golang-1.24');
+    expect(r.vendor).toBe('golang');
+    expect(r.spec).toEqual({ kind: 'line', major: 1, minor: 24 });
+  });
+  it('rejects bare 1 / bare 24 / garbage', () => {
+    expect(() => parseGoUserSpec('1')).toThrow(SdkvmError);
+    expect(() => parseGoUserSpec('24')).toThrow(SdkvmError);
+    expect(() => parseGoUserSpec('lts')).toThrow(SdkvmError);
+  });
+});
+
+describe('parseGoDirName', () => {
+  it('roundtrip', () => {
+    const v = parseGoDirName('golang-1.24.5');
+    expect(v?.vendor).toBe('golang');
+    expect(v?.patch).toBe(5);
+    expect(parseGoDirName('golang-1.24')?.patch).toBeNull();
+  });
+  it('rejects java dirs', () => {
+    expect(parseGoDirName('temurin-21')).toBeNull();
+    expect(parseGoDirName('random')).toBeNull();
   });
 });

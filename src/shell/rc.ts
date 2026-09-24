@@ -21,7 +21,10 @@ export function rcEnd(type: SdkTypeId): string {
 /** 标记块内容：环境变量指向该类型的 current 链接；case 守卫防 PATH 重复叠加 */
 export function rcBlock(type: SdkTypeId): string {
   const spec = getSdkType(type);
-  const link = `$HOME/${path.relative(os.homedir(), paths.current(type))}`;
+  const abs = paths.current(type);
+  const rel = path.relative(os.homedir(), abs);
+  // 根目录在 home 之外（SDKVM_HOME 自定义）时退回绝对路径，避免 $HOME/../.. 这类坏引用
+  const link = rel.startsWith('..') ? abs : `$HOME/${rel}`;
   return [
     rcBegin(type),
     `export ${spec.envVar}="${link}"`,

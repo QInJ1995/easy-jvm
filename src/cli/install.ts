@@ -50,10 +50,15 @@ export async function installCommand(
   const artifact = applyMirror(resolved, platform, mirrorRoot);
 
   const finalDir = path.join(paths.sdks(type), artifact.dirName);
+  // java 提示用 major，go 提示用 minor 线（1.24）
+  const hintVersion =
+    type === 'java'
+      ? String(artifact.version.major)
+      : `${artifact.version.major}.${artifact.version.minor}`;
   if (fs.existsSync(finalDir)) {
     if (!opts.force) {
       log.warn(`${artifact.displayName} is already installed`);
-      log.info(`run: ${cmdPath(type)} use ${artifact.version.major}`);
+      log.info(`run: ${cmdPath(type)} use ${hintVersion}`);
       return;
     }
     log.warn(`--force: removing existing ${artifact.dirName}`);
@@ -95,5 +100,5 @@ export async function installCommand(
   });
 
   log.ok(`installed ${artifact.displayName} → ${finalDir}`);
-  log.info(`switch to it: ${cmdPath(type)} use ${artifact.version.major}`);
+  log.info(`switch to it: ${cmdPath(type)} use ${hintVersion}`);
 }

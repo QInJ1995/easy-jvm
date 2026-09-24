@@ -57,11 +57,16 @@ async function listRemote(type: SdkTypeId, opts: { vendor?: string }): Promise<v
     log.raw('');
     log.raw(`# ${vendor.label}`);
     const width = Math.max(...lines.map((m) => `${vendor.id}-${m.key}`.length)) + 2;
-    for (const m of lines) {
+    const MAX_LINES = 12;
+    const shown = lines.slice(0, MAX_LINES);
+    for (const m of shown) {
       const name = `${vendor.id}-${m.key}`.padEnd(width);
       const lts = m.lts ? '(lts) ' : '';
       const latest = m.latestFullVersion ? `latest: ${vendor.id}-${m.latestFullVersion}` : '';
       log.raw(`  ${name}${lts}${latest}`.trimEnd());
+    }
+    if (lines.length > shown.length) {
+      log.raw(`  # note: ${lines.length - shown.length} older version lines hidden; install older ones by exact name, e.g. ${vendor.id}-${lines[lines.length - 1]?.key}`);
     }
     if (!vendor.supportsFullVersionList) {
       const first = lines[0]?.key ?? '';

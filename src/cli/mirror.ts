@@ -8,6 +8,7 @@ import { cmdPath } from './cmdname.js';
 /** 支持镜像的 vendor → 推荐镜像根 URL */
 const RECOMMENDED: Record<string, string> = {
   temurin: 'https://mirrors.nju.edu.cn/adoptium',
+  golang: 'https://golang.google.cn/dl',
 };
 
 export function mirrorCommand(

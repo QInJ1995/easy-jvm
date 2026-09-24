@@ -80,3 +80,35 @@ jobs:
         run: |
           node dist/index.js uninstall 17 --vendor corretto
           node dist/index.js ls
+
+      - name: install go 1.24
+        run: node dist/index.js go install 1.24
+
+      - name: use go 1.24
+        run: node dist/index.js go use 1.24
+
+      - name: go current + binary (linux)
+        if: runner.os == 'Linux'
+        run: |
+          test -x "$HOME/.jvm/current-go/bin/go"
+          "$HOME/.jvm/current-go/bin/go" version
+          grep -q 'jvm go init' "$HOME/.bashrc"
+          grep -q 'GOROOT="$HOME/.jvm/current-go"' "$HOME/.bashrc"
+
+      - name: go junction + registry (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          & "$env:USERPROFILE\.jvm\current-go\bin\go.exe" version
+          $reg = [Environment]::GetEnvironmentVariable('GOROOT', 'User')
+          if ($reg -ne '%USERPROFILE%\.jvm\current-go') { throw "registry GOROOT wrong: $reg" }
+          $userPath = (Get-ItemProperty 'HKCU:\Environment').Path
+          if ($userPath -notlike '*%GOROOT%\bin*') { throw "user PATH missing %GOROOT%\bin: $userPath" }
+
+      - name: go mirror smoke (url rewrite only)
+        run: |
+          node dist/index.js go mirror set golang https://golang.google.cn/dl
+          node dist/index.js go mirror show
+
+      - name: uninstall go
+        run: node dist/index.js go uninstall 1.24

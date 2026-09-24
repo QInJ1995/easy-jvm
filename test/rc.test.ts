@@ -42,8 +42,21 @@ describe('rc block', () => {
     expect(rcBlock('java')).toContain('case ":$PATH:"');
   });
 
-  it('go block exports GOROOT when registered', async () => {
-    // go 类型在阶段 3 注册；此处仅验证 java 块结构稳定
-    expect(rcBlock('java')).toContain('JAVA_HOME');
+  it('go block exports GOROOT', () => {
+    const block = rcBlock('go');
+    expect(block).toContain('GOROOT=');
+    expect(block).toContain('current-go');
+    expect(block).toContain('case \":$PATH:\"');
+  });
+
+  it('root outside home falls back to absolute path', () => {
+    process.env.SDKVM_HOME = '/opt/custom-root';
+    try {
+      const block = rcBlock('go');
+      expect(block).toContain('"/opt/custom-root/current-go"');
+      expect(block).not.toContain('$HOME/../');
+    } finally {
+      delete process.env.SDKVM_HOME;
+    }
   });
 });

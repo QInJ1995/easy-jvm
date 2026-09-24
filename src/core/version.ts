@@ -144,3 +144,64 @@ export function parseUserSpec(input: string): UserSpec {
     hint: 'Expected: 21, lts, 21.0.5, 21.0.5+11, or with vendor prefix like temurin-21',
   });
 }
+
+// —— go 解析 ——
+
+export const GO_VENDOR_IDS = ['golang'] as const;
+
+/** 解析 go 版本串：容忍 "go"/"golang-" 前缀；基础版（go1.24）patch 为 null */
+export function parseGoVersion(vendor: VendorId, input: string): SdkVersion {
+  const raw = input.trim();
+  const s = raw.replace(/^golang-/i, '').replace(/^go/i, '').replace(/^v/i, '');
+  const m = /^(\d+)\.(\d+)(?:\.(\d+))?$/.exec(s);
+  if (!m || !m[1] || !m[2]) {
+    throw new SdkvmError(`Invalid Go version: "${input}"`, {
+      hint: 'Expected forms: 1.24, 1.24.5, go1.24.5',
+    });
+  }
+  return {
+    vendor,
+    major: Number(m[1]),
+    minor: Number(m[2]),
+    patch: m[3] !== undefined ? Number(m[3]) : null,
+    extra: null,
+    build: null,
+    raw,
+  };
+}
+
+/** go 不折叠版本段：1.24 与 1.24.5 都按原样展示 */
+export function formatGoVersion(v: SdkVersion): string {
+  return v.patch === null ? `${v.major}.${v.minor}` : `${v.major}.${v.minor}.${v.patch}`;
+}
+
+/** go 安装目录名 → 版本；不匹配返回 null */
+export function parseGoDirName(dir: string): SdkVersion | null {
+  const m = new RegExp(`^(${GO_VENDOR_IDS.join('|')})-(.+)$`).exec(dir);
+  if (!m || !m[1] || !m[2]) return null;
+  try {
+    return parseGoVersion(m[1], m[2]);
+  } catch {
+    return null;
+  }
+}
+
+/** go 版本语法：1.24（该 minor 线最新）/ 1.24.5（精确）/ latest，可带 golang- 前缀 */
+export function parseGoUserSpec(input: string): UserSpec {
+  let s = input.trim().toLowerCase();
+  let vendor: VendorId | undefined;
+  const m = new RegExp(`^(${GO_VENDOR_IDS.join('|')})-(.+)$`).exec(s);
+  if (m && m[1] && m[2]) {
+    vendor = m[1];
+    s = m[2];
+  }
+  if (s === 'latest') return { vendor, spec: { kind: 'latest' } };
+  if (/^\d+\.\d+\.\d+$/.test(s)) return { vendor, spec: { kind: 'full', version: s } };
+  const line = /^(\d+)\.(\d+)$/.exec(s);
+  if (line && line[1] && line[2]) {
+    return { vendor, spec: { kind: 'line', major: Number(line[1]), minor: Number(line[2]) } };
+  }
+  throw new SdkvmError(`Invalid version: "${input}"`, {
+    hint: 'Expected: 1.24, 1.24.5, latest, or with vendor prefix like golang-1.24',
+  });
+}

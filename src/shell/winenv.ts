@@ -1,31 +1,48 @@
+import os from 'node:os';
+import path from 'node:path';
 import { run } from '../util/spawn.js';
 import { SdkvmError } from '../util/errors.js';
+import { paths } from '../core/paths.js';
+import { getSdkType } from '../sdk/index.js';
+import type { SdkTypeId } from '../sdk/types.js';
 
 /** PowerShell 脚本用 EncodedCommand 传递，避免引号转义问题 */
 function encoded(ps: string): string[] {
   return ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(ps, 'utf16le').toString('base64')];
 }
 
-/** 写用户级 JAVA_HOME（值短，setx 无截断风险） */
-export async function setJavaHomeWin(): Promise<void> {
-  await run('setx', ['JAVA_HOME', '%USERPROFILE%\\.jvm\\current']);
+/** 当前链接的 %USERPROFILE% 相对形式，如 %USERPROFILE%\.jvm\current */
+function currentLinkWin(type: SdkTypeId): string {
+  const rel = path.relative(os.homedir(), paths.current(type));
+  return `%USERPROFILE%\\${rel.split(path.sep).join('\\')}`;
+}
+
+/** 写用户级环境变量（值短，setx 无截断风险） */
+export async function setEnvWin(name: string, value: string): Promise<void> {
+  await run('setx', [name, value]);
+}
+
+/** 写该类型的环境变量（JAVA_HOME / GOROOT → current 链接） */
+export async function setSdkEnvWin(type: SdkTypeId): Promise<void> {
+  const spec = getSdkType(type);
+  await setEnvWin(spec.envVar, currentLinkWin(type));
 }
 
 /**
- * 把 %JAVA_HOME%\\bin 追加到用户 PATH。
+ * 把指定 entry（如 %JAVA_HOME%\bin）追加到用户 PATH。
  * 关键点：用 DoNotExpandEnvironmentNames 读原始值，保留 %VAR% 引用与 REG_EXPAND_SZ 类型
  * （.NET SetEnvironmentVariable 会把类型降级为 REG_SZ，破坏 %USERPROFILE% 类引用），
  * 最后广播 WM_SETTINGCHANGE 让 Explorer 刷新环境。
  */
-export async function ensureUserPathWin(): Promise<void> {
+export async function ensureUserPathWin(entry: string): Promise<void> {
   const ps = [
     "$k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment',$true)",
     "if(-not $k){ throw 'no Environment key' }",
     "$fmt=[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames",
     "$raw=[string]$k.GetValue('Path','',$fmt)",
     "$parts=@($raw -split ';' | Where-Object { $_ -ne '' })",
-    "if($parts -notcontains '%JAVA_HOME%\\bin'){",
-    "  $parts += '%JAVA_HOME%\\bin'",
+    `if($parts -notcontains '${entry.replace(/'/g, "''")}'){`,
+    `  $parts += '${entry.replace(/'/g, "''")}'`,
     "  $kind=[Microsoft.Win32.RegistryValueKind]::ExpandString",
     "  if($k.GetValueKind('Path') -eq [Microsoft.Win32.RegistryValueKind]::String){ $kind=[Microsoft.Win32.RegistryValueKind]::String }",
     "  $k.SetValue('Path', ($parts -join ';'), $kind)",
@@ -38,17 +55,23 @@ export async function ensureUserPathWin(): Promise<void> {
   await run('powershell.exe', encoded(ps));
 }
 
-/** 卸载辅助：从用户 PATH 移除 %JAVA_HOME%\bin（不存在则忽略） */
-export async function removeFromUserPathWin(): Promise<void> {
+/** 卸载辅助：从用户 PATH 移除 entry（不存在则忽略） */
+export async function removeFromUserPathWin(entry: string): Promise<void> {
+  const escaped = entry.replace(/'/g, "''");
   const ps = [
     "$k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment',$true)",
     "if(-not $k){ exit 0 }",
     "$fmt=[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames",
     "$raw=[string]$k.GetValue('Path','',$fmt)",
-    "$parts=@($raw -split ';' | Where-Object { $_ -ne '' -and $_ -ne '%JAVA_HOME%\\bin' })",
+    `$parts=@($raw -split ';' | Where-Object { $_ -ne '' -and $_ -ne '${escaped}' })`,
     "$k.SetValue('Path', ($parts -join ';'), [Microsoft.Win32.RegistryValueKind]::ExpandString)",
   ].join('\n');
   await run('powershell.exe', encoded(ps));
+}
+
+/** 某类型环境变量对应的 PATH 项（如 %JAVA_HOME%\bin） */
+export function sdkPathEntry(type: SdkTypeId): string {
+  return `%${getSdkType(type).envVar}%\\bin`;
 }
 
 export function assertWindows(): void {

@@ -1,44 +1,48 @@
-import { currentJdk, listInstalled } from '../core/registry.js';
-import { formatVersion } from '../core/version.js';
-import { allVendorIds, getVendor, resolveVendorId } from '../vendor/index.js';
+import { currentSdk, listInstalled } from '../core/registry.js';
+import { getSdkType } from '../sdk/index.js';
+import { SDK_TYPES } from '../sdk/index.js';
+import type { SdkTypeId } from '../sdk/types.js';
+import { getVendor, allVendorIds, resolveVendorId } from '../vendor/index.js';
 import { loadConfig } from '../core/config.js';
 import { toSdkvmError } from '../util/errors.js';
 import { log } from '../ui/log.js';
+import { cmdPath } from './cmdname.js';
 
-export async function lsCommand(opts: {
-  remote?: boolean;
-  vendor?: string;
-}): Promise<void> {
-  if (opts.remote) return listRemote(opts);
-  listLocal();
+export async function lsCommand(
+  type: SdkTypeId,
+  opts: { remote?: boolean; vendor?: string },
+): Promise<void> {
+  if (opts.remote) return listRemote(type, opts);
+  listLocal(type);
 }
 
-function listLocal(): void {
-  const installed = listInstalled();
+function listLocal(type: SdkTypeId): void {
+  const spec = getSdkType(type);
+  const installed = listInstalled(type);
   if (installed.length === 0) {
-    log.info('no JDK installed');
-    log.info('try: jvm install lts');
+    log.info(`no ${spec.label} installed`);
+    log.info(`try: ${cmdPath(type)} install ${spec.supportsLts ? 'lts' : 'latest'}`);
     return;
   }
-  const current = currentJdk();
+  const current = currentSdk(type);
   for (const j of installed) {
-    const name = `${j.version.vendor}-${formatVersion(j.version)}`;
+    const name = `${j.version.vendor}-${spec.formatVersion(j.version)}`;
     const marker = current?.dirPath === j.dirPath ? '→' : ' ';
     log.raw(`${marker} ${name}`);
   }
 }
 
-/** 远程列表：并行拉取各厂商，展示行即 install 可用的名称（vendor-major） */
-async function listRemote(opts: { vendor?: string }): Promise<void> {
+/** 远程列表：并行拉取该类型各厂商，展示行即 install 可用的名称（vendor-版本线） */
+async function listRemote(type: SdkTypeId, opts: { vendor?: string }): Promise<void> {
   const config = loadConfig();
-  const ids = opts.vendor ? [resolveVendorId(opts.vendor, config)] : allVendorIds();
+  const ids = opts.vendor ? [resolveVendorId(type, opts.vendor, config)] : allVendorIds(type);
 
   const sections = await Promise.all(
     ids.map(async (id) => {
-      const vendor = getVendor(id);
+      const vendor = getVendor(type, id);
       try {
-        const majors = (await vendor.listMajors()).slice().sort((a, b) => b.major - a.major);
-        return { vendor, majors };
+        const lines = (await vendor.listMajors()).slice().sort((a, b) => b.key.localeCompare(a.key, undefined, { numeric: true }));
+        return { vendor, lines };
       } catch (err) {
         // 单个厂商失败不拖垮整个列表
         log.warn(`${vendor.label}: list unavailable (${toSdkvmError(err).message})`);
@@ -48,22 +52,39 @@ async function listRemote(opts: { vendor?: string }): Promise<void> {
   );
 
   for (const sec of sections) {
-    if (!sec || sec.majors.length === 0) continue;
-    const { vendor, majors } = sec;
+    if (!sec || sec.lines.length === 0) continue;
+    const { vendor, lines } = sec;
     log.raw('');
     log.raw(`# ${vendor.label}`);
-    const width = Math.max(...majors.map((m) => `${vendor.id}-${m.major}`.length)) + 2;
-    for (const m of majors) {
-      const name = `${vendor.id}-${m.major}`.padEnd(width);
+    const width = Math.max(...lines.map((m) => `${vendor.id}-${m.key}`.length)) + 2;
+    for (const m of lines) {
+      const name = `${vendor.id}-${m.key}`.padEnd(width);
       const lts = m.lts ? '(lts) ' : '';
       const latest = m.latestFullVersion ? `latest: ${vendor.id}-${m.latestFullVersion}` : '';
       log.raw(`  ${name}${lts}${latest}`.trimEnd());
     }
     if (!vendor.supportsFullVersionList) {
-      const first = majors[0]!.major;
-      log.raw(`  # note: no version-list API; install resolves to the latest patch, e.g. jvm install ${vendor.id}-${first}`);
+      const first = lines[0]?.key ?? '';
+      log.raw(`  # note: no version-list API; install resolves to the latest patch, e.g. ${cmdPath(type)} install ${vendor.id}-${first}`);
     }
   }
   log.raw('');
-  log.raw('# install with: jvm install <name>');
+  log.raw(`# install with: ${cmdPath(type)} install <name>`);
+}
+
+/** 裸 current：遍历全部已注册 SDK 类型各显示一行 */
+export function currentCommand(types: readonly SdkTypeId[] = SDK_TYPES): void {
+  let any = false;
+  for (const type of types) {
+    const spec = getSdkType(type);
+    const current = currentSdk(type);
+    if (!current) continue;
+    any = true;
+    log.raw(`${type}: ${current.version.vendor}-${spec.formatVersion(current.version)}`);
+    log.raw(`  ${spec.envVar} → ${current.home}`);
+  }
+  if (!any) {
+    log.info('no current SDK');
+    log.info(`run: ${cmdPath('java')} use <version>   (see: ${cmdPath('java')} ls)`);
+  }
 }

@@ -1,18 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { applyMirror } from '../src/vendor/mirror.js';
 import { parseVersion } from '../src/core/version.js';
-import type { ResolvedArtifact, VendorId } from '../src/vendor/types.js';
+import type { ResolvedArtifact } from '../src/vendor/types.js';
 
-function artifact(url: string, vendorId: VendorId = 'temurin'): ResolvedArtifact {
+function artifact(url: string, vendorId: string = 'temurin'): ResolvedArtifact {
   return {
     vendorId,
-    javaVersion: parseVersion(vendorId, '21.0.12.1+1'),
+    version: parseVersion(vendorId, '21.0.12.1+1'),
     dirName: `${vendorId}-21`,
     displayName: 'Test',
     downloadUrl: url,
     checksum: null,
     archive: 'tar.gz',
-    layout: 'contents-home',
   };
 }
 

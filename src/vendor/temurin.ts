@@ -1,4 +1,4 @@
-import type { MajorRelease, ResolvedArtifact, Vendor } from './types.js';
+import type { ReleaseLine, ResolvedArtifact, Vendor } from './types.js';
 import type { VendorPlatform } from './types.js';
 import { httpJson, httpFetch } from '../net/http.js';
 import { SdkvmError } from '../util/errors.js';
@@ -62,27 +62,27 @@ function buildArtifact(
   const archive = platform.os === 'windows' ? 'zip' : 'tar.gz';
   return {
     vendorId: 'temurin',
-    javaVersion: v,
+    version: v,
     dirName: `temurin-${formatVersion(v)}`,
     displayName: `Temurin ${formatVersion(v)}`,
     downloadUrl,
     checksum: { kind: 'sha256', url: `${downloadUrl}.json` },
     archive,
-    layout: platform.os === 'mac' ? 'contents-home' : 'plain',
   };
 }
 
 export const temurinVendor: Vendor = {
   id: 'temurin',
   label: 'Adoptium Temurin',
+  sdk: 'java',
   supportsFullVersionList: true,
 
-  async listMajors(): Promise<MajorRelease[]> {
+  async listMajors(): Promise<ReleaseLine[]> {
     const data = await fetchAvailable();
     return data.available_releases
       .slice()
       .sort((a, b) => a - b)
-      .map((major) => ({ major, lts: data.available_lts_releases.includes(major) }));
+      .map((major) => ({ key: String(major), lts: data.available_lts_releases.includes(major) }));
   },
 
   async resolve(spec, platform): Promise<ResolvedArtifact> {
@@ -96,6 +96,10 @@ export const temurinVendor: Vendor = {
       );
       const latest = Math.max(...ltsMajors);
       return resolveMajor(latest, platform);
+    }
+    if (spec.kind !== 'full') {
+      // java 语法不会产出 line/latest（go 专用），防御性拒绝
+      throw new SdkvmError(`Unsupported version spec for Temurin: ${spec.kind}`);
     }
     // 精确版本：直接构造 GitHub asset URL（assets/version 端点已废弃，404 由下载环节报错）
     const url = githubAssetUrl(spec.version, platform.os, platform.arch);

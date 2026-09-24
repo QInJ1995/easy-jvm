@@ -1,38 +1,37 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { VendorId } from '../vendor/types.js';
-import { VENDOR_IDS } from './version.js';
+import { JAVA_VENDOR_IDS } from './version.js';
 import { ensureLayout, paths } from './paths.js';
 import { log } from '../ui/log.js';
 
-export interface JvmConfig {
+export interface SdkvmConfig {
   version: 1;
-  defaultVendor: VendorId;
-  mirror: Partial<Record<VendorId, string | null>>;
+  defaultVendor: string;
+  /** vendor id（跨全部 SDK 类型全局唯一）→ 镜像根 URL */
+  mirror: Partial<Record<string, string | null>>;
 }
 
-export const DEFAULT_CONFIG: JvmConfig = {
+export const DEFAULT_CONFIG: SdkvmConfig = {
   version: 1,
   defaultVendor: 'temurin',
   mirror: {},
 };
 
-export function loadConfig(): JvmConfig {
+export function loadConfig(): SdkvmConfig {
   const file = paths.config();
   if (!fs.existsSync(file)) return { ...DEFAULT_CONFIG, mirror: {} };
   try {
-    const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<JvmConfig>;
-    const config: JvmConfig = {
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<SdkvmConfig>;
+    const config: SdkvmConfig = {
       version: 1,
       defaultVendor:
-        parsed.defaultVendor && VENDOR_IDS.includes(parsed.defaultVendor)
+        parsed.defaultVendor && (JAVA_VENDOR_IDS as readonly string[]).includes(parsed.defaultVendor)
           ? parsed.defaultVendor
           : 'temurin',
       mirror: {},
     };
     if (parsed.mirror && typeof parsed.mirror === 'object') {
-      for (const id of VENDOR_IDS) {
-        const v = parsed.mirror[id];
+      for (const [id, v] of Object.entries(parsed.mirror)) {
         if (typeof v === 'string' && v.length > 0) config.mirror[id] = v;
       }
     }
@@ -50,7 +49,7 @@ export function loadConfig(): JvmConfig {
   }
 }
 
-export function saveConfig(config: JvmConfig): void {
+export function saveConfig(config: SdkvmConfig): void {
   ensureLayout();
   const file = paths.config();
   const tmp = path.join(path.dirname(file), `.config.json.tmp-${process.pid}`);

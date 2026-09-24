@@ -37,10 +37,10 @@ describe('extract + normalize', () => {
 
     const dest = path.join(work, 'out-mac');
     await extractArchive(tgz, 'tar.gz', dest, MAC);
-    const { root, javaHome } = normalizeExtracted(dest, MAC);
+    const { root, home } = normalizeExtracted(dest, MAC, 'java');
     expect(path.basename(root)).toBe('jdk-21.0.5');
-    expect(javaHome.endsWith(path.join('Contents', 'Home'))).toBe(true);
-    expect(fs.existsSync(path.join(javaHome, 'bin', 'java'))).toBe(true);
+    expect(home.endsWith(path.join('Contents', 'Home'))).toBe(true);
+    expect(fs.existsSync(path.join(home, 'bin', 'java'))).toBe(true);
   });
 
   it('plain linux layout', async () => {
@@ -52,8 +52,8 @@ describe('extract + normalize', () => {
 
     const dest = path.join(work, 'out-lin');
     await extractArchive(tgz, 'tar.gz', dest, LIN);
-    const { javaHome } = normalizeExtracted(dest, LIN);
-    expect(javaHome.endsWith('jdk-21.0.5')).toBe(true);
+    const { home } = normalizeExtracted(dest, LIN, 'java');
+    expect(home.endsWith('jdk-21.0.5')).toBe(true);
   });
 
   it('invalid archive (no bin/java) throws SdkvmError', async () => {
@@ -65,6 +65,6 @@ describe('extract + normalize', () => {
 
     const dest = path.join(work, 'out-bad');
     await extractArchive(tgz, 'tar.gz', dest, MAC);
-    expect(() => normalizeExtracted(dest, MAC)).toThrow(SdkvmError);
+    expect(() => normalizeExtracted(dest, MAC, 'java')).toThrow(SdkvmError);
   });
 });

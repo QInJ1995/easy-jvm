@@ -1,92 +1,99 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { VendorId } from '../vendor/types.js';
-import {
-  LTS_MAJORS,
-  compareVersions,
-  formatVersion,
-  parseDirName,
-  parseUserSpec,
-  type JdkVersion,
-} from './version.js';
+import type { SdkVersion } from './version.js';
+import { LTS_MAJORS } from './version.js';
 import { paths } from './paths.js';
 import { SdkvmError } from '../util/errors.js';
 import { readCurrent } from '../fs/link.js';
+import { getSdkType } from '../sdk/index.js';
+import type { SdkTypeId } from '../sdk/types.js';
+import { cmdPath } from '../cli/cmdname.js';
 
-export interface InstalledJdk {
-  version: JdkVersion;
+export interface InstalledSdk {
+  type: SdkTypeId;
+  version: SdkVersion;
   dirPath: string;
-  /** JAVA_HOME 语义路径（macOS bundle → Contents/Home） */
-  javaHome: string;
+  /** 环境语义路径（JAVA_HOME / GOROOT 指向它；java macOS bundle → Contents/Home） */
+  home: string;
 }
 
-function looksLikeMacBundle(dir: string): boolean {
-  return fs.existsSync(path.join(dir, 'Contents', 'Home', 'bin'));
-}
-
-/** 扫描 ~/.jvm/jdks/，按版本升序 */
-export function listInstalled(): InstalledJdk[] {
-  const root = paths.jdks();
+/** 扫描安装根目录（如 ~/.jvm/jdks/），按版本升序 */
+export function listInstalled(type: SdkTypeId): InstalledSdk[] {
+  const spec = getSdkType(type);
+  const root = paths.sdks(type);
   if (!fs.existsSync(root)) return [];
-  const result: InstalledJdk[] = [];
+  const result: InstalledSdk[] = [];
   for (const name of fs.readdirSync(root)) {
-    const version = parseDirName(name);
+    const version = spec.parseDirName(name);
     if (!version) continue;
     const dirPath = path.join(root, name);
     if (!fs.statSync(dirPath).isDirectory()) continue;
-    const javaHome = looksLikeMacBundle(dirPath)
-      ? path.join(dirPath, 'Contents', 'Home')
-      : dirPath;
-    result.push({ version, dirPath, javaHome });
+    result.push({ type, version, dirPath, home: spec.locateHome(dirPath) });
   }
-  result.sort((a, b) => compareVersions(a.version, b.version));
+  result.sort((a, b) => spec.compareVersions(a.version, b.version));
   return result;
 }
 
-/** 当前 current 指向的已安装 JDK（无链接或悬空返回 null） */
-export function currentJdk(): InstalledJdk | null {
-  const current = readCurrent();
+/** 当前 current 指向的已安装 SDK（无链接或悬空返回 null） */
+export function currentSdk(type: SdkTypeId): InstalledSdk | null {
+  const current = readCurrent(type);
   if (!current) return null;
   return (
-    listInstalled().find(
+    listInstalled(type).find(
       (j) =>
-        j.javaHome === current ||
+        j.home === current ||
         j.dirPath === current ||
         current.startsWith(j.dirPath + path.sep),
     ) ?? null
   );
 }
 
-/** 按用户输入匹配已安装版本：21 → 该 major 最新；21.0.5 → 前缀匹配；可带 vendor 前缀 */
-export function findInstalled(specInput: string, vendorArg?: VendorId): InstalledJdk {
-  const { vendor: specVendor, spec } = parseUserSpec(specInput);
+/**
+ * 按用户输入匹配已安装版本：
+ * java: 21 → 该 major 最新 / lts / 21.0.5 前缀匹配；go: 1.24 → 该 minor 线最新 / latest / 1.24.5 精确。
+ * 可带 vendor 前缀。
+ */
+export function findInstalled(type: SdkTypeId, specInput: string, vendorArg?: string): InstalledSdk {
+  const spec = getSdkType(type);
+  const { vendor: specVendor, spec: parsed } = spec.parseUserSpec(specInput);
   const vendor = vendorArg ?? specVendor;
-  const all = listInstalled();
+  const all = listInstalled(type);
   const candidates = vendor ? all.filter((j) => j.version.vendor === vendor) : all;
 
-  let matched: InstalledJdk[];
-  if (spec.kind === 'major') {
-    matched = candidates.filter((j) => j.version.major === spec.major);
-  } else if (spec.kind === 'lts') {
+  let matched: InstalledSdk[];
+  if (parsed.kind === 'major') {
+    matched = candidates.filter((j) => j.version.major === parsed.major);
+  } else if (parsed.kind === 'line') {
+    matched = candidates.filter(
+      (j) => j.version.major === parsed.major && j.version.minor === parsed.minor,
+    );
+  } else if (parsed.kind === 'lts') {
+    if (!spec.supportsLts) {
+      throw new SdkvmError('Go has no LTS releases', {
+        hint: `Try: ${cmdPath(type)} install latest`,
+      });
+    }
     matched = candidates.filter((j) => LTS_MAJORS.has(j.version.major));
+  } else if (parsed.kind === 'latest') {
+    matched = candidates; // 排序后取最后一个即最新
   } else {
-    const v = spec.version;
+    const v = parsed.version;
     matched = candidates.filter((j) => {
-      const f = formatVersion(j.version);
+      const f = spec.formatVersion(j.version);
       return f === v || f.startsWith(`${v}+`) || f.startsWith(`${v}.`);
     });
   }
 
   if (matched.length === 0) {
     const installedList = all
-      .map((j) => `  ${j.version.vendor}-${formatVersion(j.version)}`)
+      .map((j) => `  ${j.version.vendor}-${spec.formatVersion(j.version)}`)
       .join('\n');
-    const want = spec.kind === 'full' ? spec.version : specInput;
-    throw new SdkvmError(`No installed JDK matches "${specInput}"`, {
+    const want = parsed.kind === 'full' ? parsed.version : specInput;
+    throw new SdkvmError(`No installed ${spec.label} matches "${specInput}"`, {
       hint:
         (all.length > 0 ? `Installed:\n${installedList}\n` : '') +
-        `Install one first: jvm install ${want}`,
+        `Install one first: ${cmdPath(type)} install ${want}`,
     });
   }
-  return matched[matched.length - 1] as InstalledJdk;
+  return matched[matched.length - 1] as InstalledSdk;
 }

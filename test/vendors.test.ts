@@ -80,9 +80,9 @@ describe('temurin', () => {
     vi.stubGlobal('fetch', fetchMock);
     const majors = await temurinVendor.listMajors();
     expect(majors).toEqual([
-      { major: 17, lts: false },
-      { major: 21, lts: true },
-      { major: 22, lts: false },
+      { key: '17', lts: false },
+      { key: '21', lts: true },
+      { key: '22', lts: false },
     ]);
   });
 });
@@ -170,6 +170,6 @@ describe('corretto', () => {
   it('listMajors static', async () => {
     const majors = await correttoVendor.listMajors();
     expect(majors.every((m) => m.lts)).toBe(true);
-    expect(majors.map((m) => m.major)).toEqual([8, 11, 17, 21, 25]);
+    expect(majors.map((m) => m.key)).toEqual(['8', '11', '17', '21', '25']);
   });
 });

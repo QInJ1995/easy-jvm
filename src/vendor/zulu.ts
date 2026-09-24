@@ -1,4 +1,4 @@
-import type { MajorRelease, ResolvedArtifact, Vendor, VendorPlatform } from './types.js';
+import type { ReleaseLine, ResolvedArtifact, Vendor, VendorPlatform } from './types.js';
 import { httpJson } from '../net/http.js';
 import { SdkvmError } from '../util/errors.js';
 import { LTS_MAJORS, formatVersion, parseVersion } from '../core/version.js';
@@ -60,27 +60,28 @@ async function queryPackages(
 export const zuluVendor: Vendor = {
   id: 'zulu',
   label: 'Azul Zulu',
+  sdk: 'java',
   supportsFullVersionList: true,
 
-  async listMajors(): Promise<MajorRelease[]> {
+  async listMajors(): Promise<ReleaseLine[]> {
     // 用 Adoptium 的 OpenJDK 发布节奏作为 major 全集，逐个探测 Zulu 是否有构建
     const universe = await temurinVendor.listMajors();
     const results = await Promise.all(
-      universe.map(async ({ major }): Promise<MajorRelease | null> => {
+      universe.map(async ({ key }): Promise<ReleaseLine | null> => {
         try {
-          const packages = await queryPackages(String(major), {
+          const packages = await queryPackages(key, {
             os: 'mac',
             arch: 'aarch64',
           });
           const pick = pickPlainJdk(packages, { os: 'mac', arch: 'aarch64' });
           if (!pick) return null;
-          return { major, lts: LTS_MAJORS.has(major), latestFullVersion: pick.java_version.join('.') };
+          return { key, lts: LTS_MAJORS.has(Number(key)), latestFullVersion: pick.java_version.join('.') };
         } catch {
           return null;
         }
       }),
     );
-    return results.filter((r): r is MajorRelease => r !== null);
+    return results.filter((r): r is ReleaseLine => r !== null);
   },
 
   async resolve(spec, platform): Promise<ResolvedArtifact> {
@@ -90,13 +91,15 @@ export const zuluVendor: Vendor = {
       if (lts.length === 0) throw new SdkvmError('No Zulu LTS release found');
       const latest = lts[lts.length - 1];
       if (!latest) throw new SdkvmError('No Zulu LTS release found');
-      return this.resolve({ kind: 'major', major: latest.major }, platform);
+      return this.resolve({ kind: 'major', major: Number(latest.key) }, platform);
+    }
+    if (spec.kind !== 'major' && spec.kind !== 'full') {
+      // java 语法不会产出 line/latest（go 专用），防御性拒绝
+      throw new SdkvmError(`Unsupported version spec for Zulu: ${spec.kind}`);
     }
     const versionPrefix = spec.kind === 'major' ? String(spec.major) : spec.version;
-    const packages = await queryPackages(
-      spec.kind === 'major' ? String(spec.major) : String(parseVersion('zulu', spec.version).major),
-      platform,
-    );
+    const major = spec.kind === 'major' ? spec.major : parseVersion('zulu', spec.version).major;
+    const packages = await queryPackages(String(major), platform);
     const pick = pickPlainJdk(packages, platform, versionPrefix);
     if (!pick) {
       throw new SdkvmError(`No Zulu JDK build matches "${versionPrefix}"`, {
@@ -107,7 +110,7 @@ export const zuluVendor: Vendor = {
     const v = parseVersion('zulu', versionStr);
     return {
       vendorId: 'zulu',
-      javaVersion: v,
+      version: v,
       dirName: `zulu-${formatVersion(v)}`,
       displayName: `Zulu ${formatVersion(v)}`,
       downloadUrl: pick.download_url,
@@ -115,7 +118,6 @@ export const zuluVendor: Vendor = {
         ? { kind: 'sha256', expected: pick.sha256_hash }
         : null,
       archive: platform.os === 'windows' ? 'zip' : 'tar.gz',
-      layout: platform.os === 'mac' ? 'contents-home' : 'plain',
     };
   },
 };

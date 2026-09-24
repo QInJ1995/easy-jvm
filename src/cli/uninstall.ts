@@ -1,22 +1,26 @@
 import fs from 'node:fs';
-import { findInstalled, currentJdk } from '../core/registry.js';
+import { findInstalled, currentSdk } from '../core/registry.js';
 import { withLock } from '../core/lock.js';
 import { clearCurrent } from '../fs/link.js';
+import { getSdkType } from '../sdk/index.js';
+import type { SdkTypeId } from '../sdk/types.js';
 import { log } from '../ui/log.js';
-import type { VendorId } from '../vendor/types.js';
+import { cmdPath } from './cmdname.js';
 
 export async function uninstallCommand(
+  type: SdkTypeId,
   specInput: string,
   opts: { vendor?: string },
 ): Promise<void> {
-  const installed = findInstalled(specInput, opts.vendor as VendorId | undefined);
+  const spec = getSdkType(type);
+  const installed = findInstalled(type, specInput, opts.vendor);
   await withLock(async () => {
-    if (currentJdk()?.dirPath === installed.dirPath) {
-      clearCurrent();
-      log.warn('uninstalled the current JDK; JAVA_HOME is now dangling');
-      log.info('select another: jvm use <version>');
+    if (currentSdk(type)?.dirPath === installed.dirPath) {
+      clearCurrent(type);
+      log.warn(`uninstalled the current ${spec.label}; ${spec.envVar} is now dangling`);
+      log.info(`select another: ${cmdPath(type)} use <version>`);
     }
     fs.rmSync(installed.dirPath, { recursive: true, force: true });
   });
-  log.ok(`removed ${installed.version.vendor}-${installed.version.raw}`);
+  log.ok(`removed ${installed.version.vendor}-${spec.formatVersion(installed.version)}`);
 }

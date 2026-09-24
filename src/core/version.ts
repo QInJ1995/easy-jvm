@@ -1,16 +1,20 @@
-import type { VendorId } from '../vendor/types.js';
 import { SdkvmError } from '../util/errors.js';
 
-/** 与 Adoptium available_lts_releases 对齐的 LTS major 集 */
+/** 厂商 id：全局唯一字符串（temurin/zulu/corretto/golang），config.mirror 以它为键 */
+export type VendorId = string;
+
+/** 与 Adoptium available_lts_releases 对齐的 LTS major 集（仅 java） */
 export const LTS_MAJORS = new Set([8, 11, 17, 21, 25]);
 
-export const VENDOR_IDS = ['temurin', 'zulu', 'corretto'] as const;
+export const JAVA_VENDOR_IDS = ['temurin', 'zulu', 'corretto'] as const;
 
-export interface JdkVersion {
+/** 统一版本模型：java（extra/build 段）与 go（patch 可空）共用 */
+export interface SdkVersion {
   vendor: VendorId;
   major: number;
   minor: number;
-  patch: number;
+  /** go 基础版（go1.24）无 patch 段 */
+  patch: number | null;
   /** major.minor.patch 之后的额外段（temurin "21.0.12.1+1" 的 "1"、corretto "21.0.12.9.1" 的 "9.1"） */
   extra: string | null;
   /** "+" 之后的 build 号（temurin/zulu "11"） */
@@ -18,10 +22,11 @@ export interface JdkVersion {
   raw: string;
 }
 
-/** 解析版本串。容忍 vendor 前缀（"jdk-21.0.5+11" / "temurin-21"）。 */
-export function parseVersion(vendor: VendorId, input: string): JdkVersion {
+/** 解析 java 版本串。容忍 vendor 前缀（"jdk-21.0.5+11" / "temurin-21"）。 */
+export function parseVersion(vendor: VendorId, input: string): SdkVersion {
   const raw = input.trim();
-  let s = raw.replace(/^jdk-/i, '').replace(/^(temurin|zulu|corretto)-/i, '').replace(/^v/i, '');
+  const vendorPrefix = new RegExp(`^(${JAVA_VENDOR_IDS.join('|')})-`, 'i');
+  let s = raw.replace(/^jdk-/i, '').replace(vendorPrefix, '').replace(/^v/i, '');
   s = s.replace(/^zulu\d[\d.]*-ca-jdk[\d.]*-?/i, ''); // zulu 文件名里混入的发行版号
 
   const plusIdx = s.indexOf('+');
@@ -49,24 +54,24 @@ export function parseVersion(vendor: VendorId, input: string): JdkVersion {
   };
 }
 
-export function formatVersion(v: JdkVersion): string {
-  if (v.minor === 0 && v.patch === 0 && !v.extra && !v.build) return String(v.major);
-  let s = `${v.major}.${v.minor}.${v.patch}`;
+export function formatVersion(v: SdkVersion): string {
+  if (v.patch !== null && v.minor === 0 && v.patch === 0 && !v.extra && !v.build) return String(v.major);
+  let s = `${v.major}.${v.minor}.${v.patch ?? 0}`;
   if (v.extra) s += `.${v.extra}`;
   if (v.build) s += `+${v.build}`;
   return s;
 }
 
-export function toDirName(v: JdkVersion): string {
+export function toDirName(v: SdkVersion): string {
   return `${v.vendor}-${formatVersion(v)}`;
 }
 
-/** 目录名 → 版本；不匹配返回 null */
-export function parseDirName(dir: string): JdkVersion | null {
-  const m = /^(temurin|zulu|corretto)-(.+)$/.exec(dir);
+/** java 安装目录名 → 版本；不匹配返回 null */
+export function parseDirName(dir: string): SdkVersion | null {
+  const m = new RegExp(`^(${JAVA_VENDOR_IDS.join('|')})-(.+)$`).exec(dir);
   if (!m || !m[1] || !m[2]) return null;
   try {
-    return parseVersion(m[1] as VendorId, m[2]);
+    return parseVersion(m[1], m[2]);
   } catch {
     return null;
   }
@@ -93,20 +98,28 @@ function numericPairwise(a: string | null, b: string | null): number {
   return 0;
 }
 
-/** 同 vendor 内比较；major → minor → patch → extra → build 数值分段 */
-export function compareVersions(a: JdkVersion, b: JdkVersion): number {
-  for (const key of ['major', 'minor', 'patch'] as const) {
+/** 同 vendor 内比较；major → minor → patch（null 视为 0）→ extra → build 数值分段 */
+export function compareVersions(a: SdkVersion, b: SdkVersion): number {
+  for (const key of ['major', 'minor'] as const) {
     if (a[key] !== b[key]) return a[key] - b[key] > 0 ? 1 : -1;
   }
+  const pa = a.patch ?? 0;
+  const pb = b.patch ?? 0;
+  if (pa !== pb) return pa - pb > 0 ? 1 : -1;
   const extra = numericPairwise(a.extra, b.extra);
   if (extra !== 0) return extra;
   return numericPairwise(a.build, b.build);
 }
 
-/** 版本查询：major（装最新）/ lts / full（精确） */
+/**
+ * 版本查询：major（java 装该大版本最新）/ line（go 装该 minor 线最新）/
+ * lts（仅 java）/ latest（仅 go）/ full（精确）
+ */
 export type VersionSpec =
   | { kind: 'major'; major: number }
+  | { kind: 'line'; major: number; minor: number }
   | { kind: 'lts' }
+  | { kind: 'latest' }
   | { kind: 'full'; version: string };
 
 /** 用户输入解析结果：可带 vendor 前缀（"zulu-21"） */
@@ -115,12 +128,13 @@ export interface UserSpec {
   spec: VersionSpec;
 }
 
+/** java 版本语法：21 / lts / 21.0.5 / 21.0.5+11，可带 vendor 前缀 */
 export function parseUserSpec(input: string): UserSpec {
   let s = input.trim().toLowerCase();
   let vendor: VendorId | undefined;
-  const m = /^(temurin|zulu|corretto)-(.+)$/.exec(s);
+  const m = new RegExp(`^(${JAVA_VENDOR_IDS.join('|')})-(.+)$`).exec(s);
   if (m && m[1] && m[2]) {
-    vendor = m[1] as VendorId;
+    vendor = m[1];
     s = m[2];
   }
   if (s === 'lts' || s === '--lts') return { vendor, spec: { kind: 'lts' } };

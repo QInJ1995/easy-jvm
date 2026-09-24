@@ -2,19 +2,25 @@ import { loadConfig, saveConfig } from '../core/config.js';
 import { log } from '../ui/log.js';
 import { SdkvmError } from '../util/errors.js';
 import { allVendorIds } from '../vendor/index.js';
+import type { SdkTypeId } from '../sdk/types.js';
+import { cmdPath } from './cmdname.js';
 
-const RECOMMENDED = {
+/** 支持镜像的 vendor → 推荐镜像根 URL */
+const RECOMMENDED: Record<string, string> = {
   temurin: 'https://mirrors.nju.edu.cn/adoptium',
-} as const;
+};
 
 export function mirrorCommand(
+  type: SdkTypeId,
   action: string | undefined,
   urlOrVendor: string | undefined,
   maybeUrl: string | undefined,
 ): void {
   const config = loadConfig();
+  const mirrorable = allVendorIds(type).filter((id) => id in RECOMMENDED);
+  const first = mirrorable[0] ?? allVendorIds(type)[0] ?? '';
 
-  // jvm mirror set [vendor] <url> / jvm mirror unset [vendor] / jvm mirror show
+  // <cmd> mirror set [vendor] <url> / unset [vendor] / show
   if (action === 'set') {
     let vendor: string;
     let url: string | undefined;
@@ -22,13 +28,13 @@ export function mirrorCommand(
       vendor = urlOrVendor ?? '';
       url = maybeUrl;
     } else {
-      vendor = 'temurin';
+      vendor = first;
       url = urlOrVendor;
     }
-    if (!url) throw new SdkvmError('usage: jvm mirror set [vendor] <url>');
-    if (vendor !== 'temurin') {
-      throw new SdkvmError(`mirroring is only supported for temurin (got "${vendor}")`, {
-        hint: `recommended: jvm mirror set temurin ${RECOMMENDED.temurin}`,
+    if (!url) throw new SdkvmError(`usage: ${cmdPath(type)} mirror set [vendor] <url>`);
+    if (!mirrorable.includes(vendor)) {
+      throw new SdkvmError(`mirroring is only supported for ${mirrorable.join(', ') || 'none'} (got "${vendor}")`, {
+        hint: `recommended: ${cmdPath(type)} mirror set ${first} ${RECOMMENDED[first] ?? ''}`.trim(),
       });
     }
     try {
@@ -36,26 +42,30 @@ export function mirrorCommand(
     } catch {
       throw new SdkvmError(`invalid URL: ${url}`);
     }
-    config.mirror.temurin = url.replace(/\/+$/, '');
+    config.mirror[vendor] = url.replace(/\/+$/, '');
     saveConfig(config);
-    log.ok(`mirror for temurin → ${config.mirror.temurin}`);
+    log.ok(`mirror for ${vendor} → ${config.mirror[vendor]}`);
     return;
   }
 
   if (action === 'unset') {
-    const vendor = urlOrVendor ?? 'temurin';
-    if (vendor !== 'temurin') throw new SdkvmError(`mirroring is only supported for temurin`);
-    config.mirror.temurin = null;
+    const vendor = urlOrVendor ?? first;
+    if (!mirrorable.includes(vendor)) {
+      throw new SdkvmError(`mirroring is only supported for ${mirrorable.join(', ') || 'none'}`);
+    }
+    config.mirror[vendor] = null;
     saveConfig(config);
-    log.ok('mirror for temurin cleared (official source)');
+    log.ok(`mirror for ${vendor} cleared (official source)`);
     return;
   }
 
   // show / 无参数
   log.raw('mirrors:');
-  for (const id of allVendorIds()) {
+  for (const id of allVendorIds(type)) {
     const url = config.mirror[id];
     log.raw(`  ${id.padEnd(8)} ${url ?? '(official)'}`);
   }
-  log.raw(`recommended for CN users: jvm mirror set temurin ${RECOMMENDED.temurin}`);
+  if (first in RECOMMENDED) {
+    log.raw(`recommended for CN users: ${cmdPath(type)} mirror set ${first} ${RECOMMENDED[first]}`);
+  }
 }

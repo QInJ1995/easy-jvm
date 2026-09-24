@@ -1,4 +1,4 @@
-import type { MajorRelease, ResolvedArtifact, Vendor, VendorPlatform } from './types.js';
+import type { ReleaseLine, ResolvedArtifact, Vendor, VendorPlatform } from './types.js';
 import { httpFetch } from '../net/http.js';
 import { SdkvmError } from '../util/errors.js';
 import { LTS_MAJORS, formatVersion, parseVersion } from '../core/version.js';
@@ -41,11 +41,12 @@ async function resolveLatestVersion(major: number, platform: VendorPlatform): Pr
 export const correttoVendor: Vendor = {
   id: 'corretto',
   label: 'Amazon Corretto',
+  sdk: 'java',
   supportsFullVersionList: false,
 
-  async listMajors(): Promise<MajorRelease[]> {
+  async listMajors(): Promise<ReleaseLine[]> {
     // Corretto 无公开列表 API；只发布 LTS。latestFullVersion 由 resolve 时按需获取。
-    return MAJORS.map((major) => ({ major, lts: LTS_MAJORS.has(major) }));
+    return MAJORS.map((major) => ({ key: String(major), lts: LTS_MAJORS.has(major) }));
   },
 
   async resolve(spec, platform): Promise<ResolvedArtifact> {
@@ -60,24 +61,26 @@ export const correttoVendor: Vendor = {
         });
       }
       version = await resolveLatestVersion(spec.major, platform);
-    } else {
+    } else if (spec.kind === 'full') {
       const v = parseVersion('corretto', spec.version);
       if (!MAJORS.includes(v.major)) {
         throw new SdkvmError(`Corretto does not publish JDK ${v.major}`);
       }
       version = spec.version;
+    } else {
+      // java 语法不会产出 line/latest（go 专用），防御性拒绝
+      throw new SdkvmError(`Unsupported version spec for Corretto: ${spec.kind}`);
     }
     const v = parseVersion('corretto', version);
     const url = resourceUrl(version, platform);
     return {
       vendorId: 'corretto',
-      javaVersion: v,
+      version: v,
       dirName: `corretto-${formatVersion(v)}`,
       displayName: `Corretto ${formatVersion(v)}`,
       downloadUrl: url,
       checksum: { kind: 'sha256', url: `${url}.sha256` },
       archive: platform.os === 'windows' ? 'zip' : 'tar.gz',
-      layout: platform.os === 'mac' ? 'contents-home' : 'plain',
     };
   },
 };

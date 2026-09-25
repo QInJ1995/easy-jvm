@@ -19,7 +19,6 @@
 ## 目录
 
 - [简介](#简介)
-- [从 easy-jvm 升级](#从-easy-jvm-升级)
 - [系统要求](#系统要求)
 - [安装](#安装)
 - [快速开始](#快速开始)
@@ -48,22 +47,6 @@
 - **官方源直连**：下载地址一律经官方 API 解析；Go、Flutter、Node.js 的官方清单提供 SHA-256，**强制校验**，其余源尽力校验
 - **镜像支持**：Temurin、Go、Flutter、Node.js 均可配置国内镜像加速下载（校验和仍取自官方，镜像文件被交叉验证）
 - **可扩展**：SDK 类型抽象（`src/sdk/`）之上新增语言只需实现一个厂商模块（见[开发](#开发)）
-
-## 从 easy-jvm 升级
-
-`sdkvm` 是 `easy-jvm` 的更名升级版（原工具只管理 JDK）。已装用户：
-
-```sh
-npm uninstall -g easy-jvm    # 先卸载旧包，避免残留的 jvm 命令重建空 ~/.jvm
-npm install -g sdkvm
-```
-
-首次运行任意命令时，`~/.jvm/` 会**自动整体迁移**为 `~/.sdkvm/`：
-
-- 迁移是一次**原子目录改名**（同卷 `rename`，无中间失败窗口），已装 JDK 原样保留，无需重装
-- 随后自动改写：`current` 链接（更名为 `current-java`，绝对目标同步指向新路径）、Windows 注册表 `JAVA_HOME` 字面值、shell 配置文件中的旧 `# >>> jvm init >>>` 标记块
-- 幂等：迁移过一次后再运行不会重复动作；`~/.sdkvm/` 已存在时不自动合并，仅提示手动处理
-- 旧的 `JVM_HOME` / `JVM_MIRROR` / `JVM_QUIET` 环境变量**永久作为别名**继续识别
 
 ## 系统要求
 
@@ -95,7 +78,7 @@ $ sdkvm version
 ## 快速开始
 
 ```sh
-# Java（裸命令 = java，与 easy-jvm 时代用法完全一致）
+# Java（裸命令 = java）
 sdkvm install lts                 # 安装最新 LTS（当前为 Temurin 25）
 sdkvm use 25                      # 切换到该版本
 java -version                     # 验证生效（可能需要重开终端）
@@ -327,10 +310,6 @@ case ":$PATH:" in *":$NODE_HOME/bin:"*) ;; *) export PATH="$NODE_HOME/bin:$PATH"
 
 `%USERPROFILE%\.sdkvm\current-java` / `current-go` / `current-flutter` / `current-node` 为 junction；`use` 写入用户级 `JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT` / `NODE_HOME`，并把 `%JAVA_HOME%\bin`、`%GOROOT%\bin`、`%FLUTTER_ROOT%\bin` 追加到用户 PATH（Node 特例：Windows 归档没有 `bin/`，可执行文件在根目录，PATH 项为 `%NODE_HOME%` 本身）。通过注册表 API 操作并原样保留 `REG_EXPAND_SZ` 类型与 `%VAR%` 引用，避免 `setx` 的 1024 字符截断问题。需要**重开终端**（或重启 IDE）生效。
 
-### 数据迁移
-
-首次运行时检测旧版 `~/.jvm/`：存在且 `~/.sdkvm/` 尚未创建时，执行一次原子目录改名，随后重写 `current` 链接（更名为 `current-java`，绝对目标同步改指新路径）、Windows 注册表 `JAVA_HOME` 字面值、shell 配置文件中的旧标记块。`~/.sdkvm/` 已存在时**不自动合并**，仅提示手动处理。详见[从 easy-jvm 升级](#从-easy-jvm-升级)。
-
 ## 配置
 
 ### 配置文件
@@ -413,9 +392,6 @@ rc 代码块只在**新终端**（或 `source ~/.zshrc`）时生效；IDE 需重
 
 **Q：公司网络走代理，能用吗？**
 当前版本未内置 HTTP 代理支持（Node fetch 不读 `HTTPS_PROXY`）。可用系统级透明代理，或关注后续版本。
-
-**Q：装回 easy-jvm 会怎样？**
-easy-jvm 使用独立的 `~/.jvm`，二者互不破坏，但版本各装各的。建议只用 sdkvm（`~/.jvm` 若再出现，检查是否残留旧全局包）。
 
 **Q：sdkvm 自身怎么升级？**
 `sdkvm` 由 npm 分发：`npm update -g sdkvm`。数据目录（`~/.sdkvm`）与 CLI 升级无关。

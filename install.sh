@@ -8,7 +8,7 @@ RUNTIME_NODE_VERSION="${SDKVM_RUNTIME_NODE:-22.20.0}"
 NODE_DIST="${SDKVM_NODE_DIST:-https://nodejs.org/dist}"
 RELEASE_BASE="${SDKVM_RELEASE_BASE:-https://github.com/QInJ1995/sdkvm/releases}"
 ROOT="${SDKVM_HOME:-$HOME/.sdkvm}"
-BIN_DIR="${HOME}/.local/bin"
+BIN_DIR="$ROOT/bin"
 NODE_DIST="${NODE_DIST%/}"
 RELEASE_BASE="${RELEASE_BASE%/}"
 
@@ -138,5 +138,5 @@ echo "sdkvm: installed to $BIN_DIR/sdkvm"
 echo "sdkvm: runtime $ROOT/runtime/current (isolated from sdkvm node use)"
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
-  *) echo "sdkvm: add to your shell profile: export PATH=\"\$HOME/.local/bin:\$PATH\"" ;;
+  *) echo "sdkvm: add to your shell profile: export PATH=\"$BIN_DIR:\$PATH\"" ;;
 esac

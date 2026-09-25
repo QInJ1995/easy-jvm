@@ -7,7 +7,7 @@ $RuntimeNode = if ($env:SDKVM_RUNTIME_NODE) { $env:SDKVM_RUNTIME_NODE } else { '
 $NodeDist = if ($env:SDKVM_NODE_DIST) { $env:SDKVM_NODE_DIST.TrimEnd('/') } else { 'https://nodejs.org/dist' }
 $ReleaseBase = if ($env:SDKVM_RELEASE_BASE) { $env:SDKVM_RELEASE_BASE.TrimEnd('/') } else { 'https://github.com/QInJ1995/sdkvm/releases' }
 $Root = if ($env:SDKVM_HOME) { $env:SDKVM_HOME } else { Join-Path $env:USERPROFILE '.sdkvm' }
-$BinDir = Join-Path $env:USERPROFILE '.local\bin'
+$BinDir = Join-Path $Root 'bin'
 
 # Prefer the machine arch under WOW64 (32-bit PowerShell on 64-bit Windows)
 $procArch = $env:PROCESSOR_ARCHITECTURE

@@ -102,7 +102,7 @@ The script:
 
 1. Downloads Node.js 22.20.0 into `~/.sdkvm/runtime`. That copy only launches the CLI. `sdkvm node use` does not change it.
 2. Downloads `sdkvm.tgz` from the GitHub Release, checks SHA-256, and extracts it to `~/.sdkvm/cli`.
-3. Writes `~/.local/bin/sdkvm` (on Windows, `%USERPROFILE%\.local\bin\sdkvm.cmd`). If that directory is not on `PATH`, the script prints the line to add.
+3. Writes `~/.sdkvm/bin/sdkvm` (on Windows, `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`). If that directory is not on `PATH`, the script prints the line to add.
 
 The data root matches the CLI: `SDKVM_HOME` overrides it, otherwise `~/.sdkvm`. Both the runtime and the CLI live under that root. Override download prefixes when needed:
 
@@ -353,6 +353,7 @@ The data root is `~/.sdkvm` (`%USERPROFILE%\.sdkvm` on Windows). `SDKVM_HOME` ov
 ├── current-node
 ├── runtime/         # Script-install Node, isolated from current-node
 ├── cli/             # Script-install CLI package
+├── bin/             # Script-install entrypoint sdkvm (add to PATH)
 ├── config.json
 ├── cache/           # Download staging, removed after a successful install
 └── tmp/             # Extract staging, also removed
@@ -552,11 +553,10 @@ pnpm, yarn, and bun use their own global uninstall command.
 A script install removes the shim and the CLI runtime. Installed SDKs stay:
 
 ```sh
-rm -f ~/.local/bin/sdkvm
-rm -rf ~/.sdkvm/cli ~/.sdkvm/runtime
+rm -rf ~/.sdkvm/bin ~/.sdkvm/cli ~/.sdkvm/runtime
 ```
 
-On Windows, delete `%USERPROFILE%\.local\bin\sdkvm.cmd`, plus `%USERPROFILE%\.sdkvm\cli` and `%USERPROFILE%\.sdkvm\runtime`.
+On Windows, delete `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`, plus `%USERPROFILE%\.sdkvm\cli` and `%USERPROFILE%\.sdkvm\runtime`.
 
 After you no longer need the installed JDKs, Go, Flutter, and Node.js, remove the data directory:
 

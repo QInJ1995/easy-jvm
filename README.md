@@ -102,7 +102,7 @@ irm https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.ps1 | iex
 
 1. 下载 Node.js 22.20.0 到 `~/.sdkvm/runtime`。它只启动 CLI，`sdkvm node use` 不会改到它。
 2. 从 GitHub Release 下载 `sdkvm.tgz`，校验 SHA-256 后解压到 `~/.sdkvm/cli`。
-3. 写入 `~/.local/bin/sdkvm`（Windows 为 `%USERPROFILE%\.local\bin\sdkvm.cmd`）。目录不在 `PATH` 中时，脚本会打印需要追加的那一行。
+3. 写入 `~/.sdkvm/bin/sdkvm`（Windows 为 `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`）。目录不在 `PATH` 中时，脚本会打印需要追加的那一行。
 
 数据根与 CLI 一致：`SDKVM_HOME` 可覆盖，默认 `~/.sdkvm`。runtime 与 CLI 都落在该根下。国内可换下载前缀：
 
@@ -353,6 +353,7 @@ sdkvm nrm test
 ├── current-node
 ├── runtime/         # 脚本安装的 CLI 运行时，与 current-node 隔离
 ├── cli/             # 脚本安装的 CLI 包
+├── bin/             # 脚本安装的入口 sdkvm（需加入 PATH）
 ├── config.json
 ├── cache/           # 下载中转，安装成功后删除
 └── tmp/             # 解压临时目录，同样会删除
@@ -552,11 +553,10 @@ pnpm、yarn、bun 使用各自的全局卸载命令。
 脚本安装只删除 shim 和 CLI 运行时，已安装的 SDK 还在：
 
 ```sh
-rm -f ~/.local/bin/sdkvm
-rm -rf ~/.sdkvm/cli ~/.sdkvm/runtime
+rm -rf ~/.sdkvm/bin ~/.sdkvm/cli ~/.sdkvm/runtime
 ```
 
-Windows 对应删除 `%USERPROFILE%\.local\bin\sdkvm.cmd`，以及 `%USERPROFILE%\.sdkvm\cli` 与 `%USERPROFILE%\.sdkvm\runtime`。
+Windows 对应删除 `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`，以及 `%USERPROFILE%\.sdkvm\cli` 与 `%USERPROFILE%\.sdkvm\runtime`。
 
 确认不再需要已安装的 JDK、Go、Flutter、Node.js 之后，再删除数据目录：
 

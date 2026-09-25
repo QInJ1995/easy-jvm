@@ -1,0 +1,173 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mirrorCommand } from '../src/cli/mirror.js';
+import {
+  availableSiteNamesForType,
+  findMirrorSite,
+  formatMirrorListLine,
+  listMirrorSitesForType,
+  matchMirrorSiteName,
+  normalizeMirrorUrl,
+  siteVendorsForType,
+} from '../src/cli/mirror-presets.js';
+import { loadConfig } from '../src/core/config.js';
+import { SdkvmError } from '../src/util/errors.js';
+import { log } from '../src/ui/log.js';
+
+let home: string;
+
+beforeEach(() => {
+  home = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkvm-mirror-cli-'));
+  process.env.SDKVM_HOME = home;
+});
+
+afterEach(() => {
+  fs.rmSync(home, { recursive: true, force: true });
+  delete process.env.SDKVM_HOME;
+  vi.restoreAllMocks();
+});
+
+describe('mirror presets', () => {
+  it('normalizes trailing slashes and case', () => {
+    expect(normalizeMirrorUrl('https://Mirrors.NJU.edu.cn/adoptium/')).toBe(
+      'https://mirrors.nju.edu.cn/adoptium',
+    );
+  });
+
+  it('resolves aliases', () => {
+    expect(findMirrorSite('tsinghua')?.name).toBe('tuna');
+    expect(findMirrorSite('ali')?.name).toBe('aliyun');
+    expect(findMirrorSite('NJU')?.name).toBe('nju');
+  });
+
+  it('filters sites by SDK type coverage', () => {
+    const java = listMirrorSitesForType('java').map((s) => s.name);
+    expect(java).toEqual(['nju', 'tuna', 'official']);
+
+    const go = listMirrorSitesForType('go').map((s) => s.name);
+    expect(go).toEqual(['nju', 'aliyun', 'official']);
+
+    const flutter = listMirrorSitesForType('flutter').map((s) => s.name);
+    expect(flutter).toEqual(['nju', 'tuna', 'official']);
+
+    const node = listMirrorSitesForType('node').map((s) => s.name);
+    expect(node).toEqual(['nju', 'aliyun', 'huawei', 'official']);
+  });
+
+  it('scopes vendor URLs per type', () => {
+    const nju = findMirrorSite('nju')!;
+    expect(siteVendorsForType(nju, 'go')).toEqual({
+      golang: 'https://mirror.nju.edu.cn/golang',
+    });
+    expect(siteVendorsForType(nju, 'java')).toEqual({
+      temurin: 'https://mirrors.nju.edu.cn/adoptium',
+    });
+    expect(siteVendorsForType(findMirrorSite('huawei')!, 'java')).toEqual({});
+  });
+
+  it('matches site only within type scope', () => {
+    expect(matchMirrorSiteName('java', {})).toBe('official');
+    expect(
+      matchMirrorSiteName('java', { temurin: 'https://mirrors.nju.edu.cn/adoptium' }),
+    ).toBe('nju');
+    // go still official even if java is set
+    expect(
+      matchMirrorSiteName('go', { temurin: 'https://mirrors.nju.edu.cn/adoptium' }),
+    ).toBe('official');
+    expect(
+      matchMirrorSiteName('go', {
+        temurin: 'https://mirrors.nju.edu.cn/adoptium',
+        golang: 'https://mirror.nju.edu.cn/golang',
+      }),
+    ).toBe('nju');
+    expect(matchMirrorSiteName('java', { temurin: 'https://example.com/jdk' })).toBeNull();
+  });
+
+  it('formats nrm-style list lines', () => {
+    expect(formatMirrorListLine('nju', 'https://mirror.nju.edu.cn/golang', true)).toBe(
+      '* nju ---------- https://mirror.nju.edu.cn/golang',
+    );
+  });
+});
+
+describe('mirrorCommand use / ls / current', () => {
+  it('use nju on go only writes golang', () => {
+    const ok = vi.spyOn(log, 'ok').mockImplementation(() => {});
+    mirrorCommand('go', 'use', 'nju', undefined);
+    const c = loadConfig();
+    expect(c.mirror.golang).toBe('https://mirror.nju.edu.cn/golang');
+    expect(c.mirror.temurin).toBeUndefined();
+    expect(c.mirror.nodejs).toBeUndefined();
+    expect(ok).toHaveBeenCalled();
+  });
+
+  it('use on node does not clear go mirror', () => {
+    mirrorCommand('go', 'use', 'aliyun', undefined);
+    mirrorCommand('node', 'use', 'huawei', undefined);
+    const c = loadConfig();
+    expect(c.mirror.golang).toBe('https://mirrors.aliyun.com/golang');
+    expect(c.mirror.nodejs).toBe('https://repo.huaweicloud.com/nodejs');
+  });
+
+  it('use official clears only current type', () => {
+    mirrorCommand('go', 'use', 'nju', undefined);
+    mirrorCommand('node', 'use', 'nju', undefined);
+    mirrorCommand('go', 'use', 'official', undefined);
+    const c = loadConfig();
+    expect(c.mirror.golang).toBeUndefined();
+    expect(c.mirror.nodejs).toBe('https://mirror.nju.edu.cn/nodejs-release');
+  });
+
+  it('use huawei on java fails', () => {
+    expect(() => mirrorCommand('java', 'use', 'huawei', undefined)).toThrow(SdkvmError);
+    expect(() => mirrorCommand('java', 'use', 'huawei', undefined)).toThrow(/huawei/);
+  });
+
+  it('use resolves aliases', () => {
+    mirrorCommand('flutter', 'use', 'tsinghua', undefined);
+    expect(loadConfig().mirror.flutter).toBe(
+      'https://mirrors.tuna.tsinghua.edu.cn/flutter/flutter_infra_release',
+    );
+  });
+
+  it('ls marks current site for type', () => {
+    mirrorCommand('go', 'use', 'nju', undefined);
+    const lines: string[] = [];
+    vi.spyOn(log, 'raw').mockImplementation((msg) => {
+      lines.push(msg);
+    });
+    mirrorCommand('go', 'ls', undefined, undefined);
+    expect(lines.some((l) => l.startsWith('* nju'))).toBe(true);
+    expect(availableSiteNamesForType('go')).toContain('official');
+  });
+
+  it('ls shows custom when URL is hand-set', () => {
+    mirrorCommand('go', 'set', 'golang', 'https://golang.google.cn/dl');
+    const lines: string[] = [];
+    vi.spyOn(log, 'raw').mockImplementation((msg) => {
+      lines.push(msg);
+    });
+    mirrorCommand('go', 'ls', undefined, undefined);
+    expect(lines.some((l) => l.startsWith('* custom') && l.includes('golang.google.cn'))).toBe(
+      true,
+    );
+  });
+
+  it('current prints site name', () => {
+    mirrorCommand('node', 'use', 'ali', undefined);
+    const lines: string[] = [];
+    vi.spyOn(log, 'raw').mockImplementation((msg) => {
+      lines.push(msg);
+    });
+    mirrorCommand('node', 'current', undefined, undefined);
+    expect(lines[0]).toMatch(/^aliyun → /);
+  });
+
+  it('set URL still works and is type-scoped vendor check', () => {
+    mirrorCommand('java', 'set', 'temurin', 'https://mirrors.nju.edu.cn/adoptium/');
+    expect(loadConfig().mirror.temurin).toBe('https://mirrors.nju.edu.cn/adoptium');
+    expect(() => mirrorCommand('java', 'set', 'golang', 'https://example.com')).toThrow(SdkvmError);
+  });
+});

@@ -1,0 +1,148 @@
+import type { SdkTypeId } from '../sdk/types.js';
+
+/** 支持镜像的 vendor id（与 applyMirror / 历史 RECOMMENDED 对齐） */
+export type MirrorVendorId = 'temurin' | 'golang' | 'flutter' | 'nodejs';
+
+export interface MirrorSite {
+  name: string;
+  aliases?: readonly string[];
+  /** 是否在 ls 中展示（别名站可隐藏） */
+  list: boolean;
+  /** 该站对各 vendor 的镜像根；缺省表示本站不覆盖该 vendor */
+  vendors: Partial<Record<MirrorVendorId, string>>;
+}
+
+/** SDK 类型 → 可镜像的 vendor（本版每类型至多一个） */
+export const MIRRORABLE_BY_TYPE: Record<SdkTypeId, readonly MirrorVendorId[]> = {
+  java: ['temurin'],
+  go: ['golang'],
+  flutter: ['flutter'],
+  node: ['nodejs'],
+};
+
+/**
+ * 内置镜像站。只收录与 applyMirror 路径约定兼容、且站方/文档可对上的根 URL。
+ * tuna 不含 nodejs：TUNA nodejs-release 归档不全。
+ */
+export const MIRROR_SITE_PRESETS: readonly MirrorSite[] = [
+  {
+    name: 'nju',
+    list: true,
+    vendors: {
+      temurin: 'https://mirrors.nju.edu.cn/adoptium',
+      golang: 'https://mirror.nju.edu.cn/golang',
+      flutter: 'https://mirror.nju.edu.cn/flutter/flutter_infra_release',
+      nodejs: 'https://mirror.nju.edu.cn/nodejs-release',
+    },
+  },
+  {
+    name: 'tuna',
+    aliases: ['tsinghua'],
+    list: true,
+    vendors: {
+      temurin: 'https://mirrors.tuna.tsinghua.edu.cn/Adoptium',
+      flutter: 'https://mirrors.tuna.tsinghua.edu.cn/flutter/flutter_infra_release',
+    },
+  },
+  {
+    name: 'aliyun',
+    aliases: ['ali'],
+    list: true,
+    vendors: {
+      golang: 'https://mirrors.aliyun.com/golang',
+      nodejs: 'https://mirrors.aliyun.com/nodejs-release',
+    },
+  },
+  {
+    name: 'huawei',
+    list: true,
+    vendors: {
+      nodejs: 'https://repo.huaweicloud.com/nodejs',
+    },
+  },
+  {
+    name: 'official',
+    list: true,
+    vendors: {},
+  },
+];
+
+export function normalizeMirrorUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '').toLowerCase();
+}
+
+export function mirrorableVendors(type: SdkTypeId): readonly MirrorVendorId[] {
+  return MIRRORABLE_BY_TYPE[type];
+}
+
+/** 站点对本类型实际可写的 vendor → URL（official 返回空对象） */
+export function siteVendorsForType(
+  site: MirrorSite,
+  type: SdkTypeId,
+): Partial<Record<MirrorVendorId, string>> {
+  const out: Partial<Record<MirrorVendorId, string>> = {};
+  for (const id of mirrorableVendors(type)) {
+    const url = site.vendors[id];
+    if (url) out[id] = url.replace(/\/+$/, '');
+  }
+  return out;
+}
+
+export function findMirrorSite(name: string): MirrorSite | undefined {
+  const key = name.trim().toLowerCase();
+  return MIRROR_SITE_PRESETS.find(
+    (s) =>
+      s.name.toLowerCase() === key ||
+      s.aliases?.some((a) => a.toLowerCase() === key),
+  );
+}
+
+/** 对本类型至少覆盖一个 vendor 的可展示站点（含 official） */
+export function listMirrorSitesForType(type: SdkTypeId): MirrorSite[] {
+  return MIRROR_SITE_PRESETS.filter((s) => {
+    if (!s.list) return false;
+    if (s.name === 'official') return true;
+    return Object.keys(siteVendorsForType(s, type)).length > 0;
+  });
+}
+
+/**
+ * 当前配置在本类型下命中的站点名。
+ * official：本类型全部 mirrorable vendor 均未配置。
+ * 其它站：该站为本类型提供的每个 URL 均与 config 一致。
+ */
+export function matchMirrorSiteName(
+  type: SdkTypeId,
+  mirror: Partial<Record<string, string | null>>,
+): string | null {
+  const vendors = mirrorableVendors(type);
+  const allOfficial = vendors.every((id) => {
+    const v = mirror[id];
+    return v == null || v === '';
+  });
+  if (allOfficial) return 'official';
+
+  for (const site of MIRROR_SITE_PRESETS) {
+    if (site.name === 'official' || !site.list) continue;
+    const scoped = siteVendorsForType(site, type);
+    const ids = Object.keys(scoped) as MirrorVendorId[];
+    if (ids.length === 0) continue;
+    const hit = ids.every((id) => {
+      const configured = mirror[id];
+      if (configured == null || configured === '') return false;
+      return normalizeMirrorUrl(configured) === normalizeMirrorUrl(scoped[id]!);
+    });
+    if (hit) return site.name;
+  }
+  return null;
+}
+
+export function formatMirrorListLine(name: string, detail: string, current: boolean): string {
+  const mark = current ? '*' : ' ';
+  const padded = `${name} `.padEnd(14, '-');
+  return `${mark} ${padded} ${detail}`;
+}
+
+export function availableSiteNamesForType(type: SdkTypeId): string[] {
+  return listMirrorSitesForType(type).map((s) => s.name);
+}

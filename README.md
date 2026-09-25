@@ -178,7 +178,7 @@ Java 使用裸命令（`sdkvm install`）或 `sdkvm java`，两者等价。Go、
 | `sdkvm ls` / `sdkvm ls -r` | 列出已安装版本 / 可安装版本线 |
 | `sdkvm current` | 显示全部 SDK 的当前版本 |
 | `sdkvm uninstall <version>` | 卸载一个版本 |
-| `sdkvm mirror show\|set\|unset` | 管理 SDK 下载镜像（安装包，不是 npm 包源） |
+| `sdkvm mirror ls\|use\|current\|show\|set\|unset` | 管理 SDK 下载镜像站 / URL（安装包，不是 npm 包源） |
 | `sdkvm nrm ls\|use\|current\|add\|del\|test` | 管理用户级 npm registry（类似 nrm） |
 | `sdkvm java\|go\|flutter\|node …` | 各 SDK 的完整命令组 |
 | `sdkvm version` | 打印 CLI 版本（同 `sdkvm --version`） |
@@ -273,13 +273,25 @@ node: nodejs-22.20.0
 
 ### `sdkvm mirror`
 
-Java 用 `sdkvm mirror`，其余用 `sdkvm go mirror`、`sdkvm flutter mirror`、`sdkvm node mirror`。详见[镜像加速](#镜像加速)。
+Java 用 `sdkvm mirror`，其余用 `sdkvm go mirror`、`sdkvm flutter mirror`、`sdkvm node mirror`。**按 SDK 类型作用域互不影响**。详见[镜像加速](#镜像加速)。
+
+```sh
+sdkvm mirror ls
+sdkvm mirror use nju
+sdkvm go mirror use aliyun
+sdkvm flutter mirror use tuna
+sdkvm node mirror use huawei
+sdkvm go mirror use official
+```
 
 | 动作 | 说明 |
 |---|---|
-| `show` | 查看当前镜像（含推荐值） |
-| `set <vendor> <url>` | 写入配置文件 |
-| `unset <vendor>` | 恢复官方源 |
+| `ls` | 列出对本类型有覆盖的内置镜像站，`*` 标当前 |
+| `use <site>` | 切换到该站对本类型的镜像根（只写本类型 vendor） |
+| `current` | 打印命中站名与本类型各 vendor URL |
+| `show` | 查看当前镜像（含 `ls` / `use` 提示） |
+| `set [vendor] <url>` | 手填 URL 写入配置 |
+| `unset [vendor]` | 恢复官方源 |
 
 ### `sdkvm nrm`
 
@@ -428,13 +440,30 @@ Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变�
 
 ## 镜像加速
 
-Temurin 默认从 GitHub 下载，Go 默认从 go.dev，Flutter 默认从 `storage.googleapis.com`。
+Temurin 默认从 GitHub 下载，Go 默认从 go.dev，Flutter 默认从 `storage.googleapis.com`。推荐按类型选用内置镜像站：
+
+```sh
+sdkvm mirror use nju
+sdkvm go mirror use nju
+sdkvm flutter mirror use nju
+sdkvm node mirror use nju
+```
+
+内置站与覆盖（`use` 只写当前 SDK 类型对应的 vendor；别名：`tsinghua`→`tuna`，`ali`→`aliyun`）：
+
+| 站点 | Java (temurin) | Go | Flutter | Node.js |
+|---|---|---|---|---|
+| `nju` | ✓ | ✓ | ✓ | ✓ |
+| `tuna` | ✓ | — | ✓ | —（归档不全，未收录） |
+| `aliyun` | — | ✓ | — | ✓ |
+| `huawei` | — | — | — | ✓ |
+| `official` | 清空本类型 | 清空本类型 | 清空本类型 | 清空本类型 |
+
+仍可手填 URL：
 
 ```sh
 sdkvm mirror set temurin https://mirrors.nju.edu.cn/adoptium
 sdkvm go mirror set golang https://golang.google.cn/dl
-sdkvm flutter mirror set flutter https://mirror.nju.edu.cn/flutter/flutter_infra_release
-sdkvm node mirror set nodejs https://mirror.nju.edu.cn/nodejs-release
 ```
 
 临时指定、不写入配置：
@@ -447,7 +476,8 @@ SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 
 | 厂商 | 镜像写法 | 说明 |
 |---|---|---|
-| Go | `https://golang.google.cn/dl` 或 `https://mirrors.aliyun.com/golang` | 文件名直接拼在根 URL 后 |
+| Temurin | Adoptium 目录结构 | 已验证 [NJU](https://mirrors.nju.edu.cn/adoptium)、[TUNA](https://mirrors.tuna.tsinghua.edu.cn/Adoptium) |
+| Go | 文件名直接拼在根 URL 后 | 如 `nju` / `aliyun`，或手填 `https://golang.google.cn/dl` |
 | Flutter | 桶前缀替换 | 已验证 [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release)。`storage.flutter-io.cn` 没有发布清单，不要使用 |
 | Node.js | 前缀替换 | 已验证 [NJU](https://mirror.nju.edu.cn/nodejs-release)。TUNA 的 nodejs-release 缺少归档，不要使用 |
 | Zulu、Corretto | — | 官方 CDN 直发，暂不支持镜像 |

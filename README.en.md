@@ -178,7 +178,7 @@ Java accepts bare commands (`sdkvm install`) or `sdkvm java`. Go, Flutter, and N
 | `sdkvm ls` / `sdkvm ls -r` | List installed versions / installable lines |
 | `sdkvm current` | Show the current version of every SDK |
 | `sdkvm uninstall <version>` | Remove one version |
-| `sdkvm mirror show\|set\|unset` | Manage SDK download mirrors (install archives, not the npm package registry) |
+| `sdkvm mirror ls\|use\|current\|show\|set\|unset` | Manage SDK download mirror sites / URLs (install archives, not the npm package registry) |
 | `sdkvm nrm ls\|use\|current\|add\|del\|test` | Manage the user-level npm registry (like nrm) |
 | `sdkvm java\|go\|flutter\|node …` | Full command group for that SDK |
 | `sdkvm version` | Print the CLI version (same as `sdkvm --version`) |
@@ -273,13 +273,25 @@ Same syntax as `use`. Uninstalling the current version clears that `current-*` l
 
 ### `sdkvm mirror`
 
-Java uses `sdkvm mirror`. The others use `sdkvm go mirror`, `sdkvm flutter mirror`, and `sdkvm node mirror`. See [Mirrors](#mirrors).
+Java uses `sdkvm mirror`. The others use `sdkvm go mirror`, `sdkvm flutter mirror`, and `sdkvm node mirror`. **Each SDK type has its own scope.** See [Mirrors](#mirrors).
+
+```sh
+sdkvm mirror ls
+sdkvm mirror use nju
+sdkvm go mirror use aliyun
+sdkvm flutter mirror use tuna
+sdkvm node mirror use huawei
+sdkvm go mirror use official
+```
 
 | Action | Meaning |
 |---|---|
-| `show` | Print the current mirror, including the suggested value |
-| `set <vendor> <url>` | Write the URL into the config file |
-| `unset <vendor>` | Return to the official source |
+| `ls` | List built-in sites that cover this SDK type; `*` marks current |
+| `use <site>` | Switch to that site's mirror root for this type only |
+| `current` | Print the matched site name and per-vendor URLs for this type |
+| `show` | Print the current mirrors (with `ls` / `use` hints) |
+| `set [vendor] <url>` | Write a hand-entered URL into the config file |
+| `unset [vendor]` | Return to the official source |
 
 ### `sdkvm nrm`
 
@@ -428,13 +440,30 @@ Mirror precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official source.
 
 ## Mirrors
 
-Temurin downloads from GitHub by default, Go from go.dev, and Flutter from `storage.googleapis.com`.
+Temurin downloads from GitHub by default, Go from go.dev, and Flutter from `storage.googleapis.com`. Prefer a built-in site per SDK type:
+
+```sh
+sdkvm mirror use nju
+sdkvm go mirror use nju
+sdkvm flutter mirror use nju
+sdkvm node mirror use nju
+```
+
+Built-in sites and coverage (`use` only writes vendors for the current SDK type; aliases: `tsinghua`→`tuna`, `ali`→`aliyun`):
+
+| Site | Java (temurin) | Go | Flutter | Node.js |
+|---|---|---|---|---|
+| `nju` | ✓ | ✓ | ✓ | ✓ |
+| `tuna` | ✓ | — | ✓ | — (incomplete archives; not listed) |
+| `aliyun` | — | ✓ | — | ✓ |
+| `huawei` | — | — | — | ✓ |
+| `official` | Clear this type | Clear this type | Clear this type | Clear this type |
+
+You can still set a raw URL:
 
 ```sh
 sdkvm mirror set temurin https://mirrors.nju.edu.cn/adoptium
 sdkvm go mirror set golang https://golang.google.cn/dl
-sdkvm flutter mirror set flutter https://mirror.nju.edu.cn/flutter/flutter_infra_release
-sdkvm node mirror set nodejs https://mirror.nju.edu.cn/nodejs-release
 ```
 
 A one-shot override that is not saved:
@@ -447,7 +476,8 @@ A mirror replaces the archive URL only. Version metadata and checksums always co
 
 | Vendor | Mirror form | Notes |
 |---|---|---|
-| Go | `https://golang.google.cn/dl` or `https://mirrors.aliyun.com/golang` | The file name is appended to the root URL |
+| Temurin | Adoptium directory layout | Verified against [NJU](https://mirrors.nju.edu.cn/adoptium) and [TUNA](https://mirrors.tuna.tsinghua.edu.cn/Adoptium) |
+| Go | File name appended to the root URL | e.g. `nju` / `aliyun`, or hand-set `https://golang.google.cn/dl` |
 | Flutter | Bucket-prefix replacement | Verified against [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release). Do not use `storage.flutter-io.cn`; it has no release manifest |
 | Node.js | Prefix replacement | Verified against [NJU](https://mirror.nju.edu.cn/nodejs-release). The TUNA nodejs-release mirror is missing archives |
 | Zulu, Corretto | — | Served from the official CDN. No mirror support yet |

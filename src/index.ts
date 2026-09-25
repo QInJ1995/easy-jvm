@@ -70,10 +70,10 @@ function registerSdkCommands(cmd: Command, type: SdkTypeId): void {
 
   cmd
     .command('mirror')
-    .description('show or set the download mirror')
-    .argument('[action]', 'show | set | unset')
-    .argument('[vendor]', 'vendor id')
-    .argument('[url]', 'mirror root URL')
+    .description('show, set, or switch download mirror sites for this SDK')
+    .argument('[action]', 'ls | use | current | show | set | unset')
+    .argument('[nameOrVendor]', 'site name, vendor id, or URL')
+    .argument('[url]', 'mirror root URL (for set)')
     .action((a: string | undefined, v: string | undefined, u: string | undefined) =>
       mirrorCommand(type, a, v, u),
     );

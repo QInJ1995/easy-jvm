@@ -178,7 +178,8 @@ Java accepts bare commands (`sdkvm install`) or `sdkvm java`. Go, Flutter, and N
 | `sdkvm ls` / `sdkvm ls -r` | List installed versions / installable lines |
 | `sdkvm current` | Show the current version of every SDK |
 | `sdkvm uninstall <version>` | Remove one version |
-| `sdkvm mirror show\|set\|unset` | Manage download mirrors |
+| `sdkvm mirror show\|set\|unset` | Manage SDK download mirrors (install archives, not the npm package registry) |
+| `sdkvm nrm ls\|use\|current\|add\|del\|test` | Manage the user-level npm registry (like nrm) |
 | `sdkvm java\|go\|flutter\|node …` | Full command group for that SDK |
 | `sdkvm version` | Print the CLI version (same as `sdkvm --version`) |
 | `sdkvm upgrade` | Upgrade the CLI. See [Upgrade](#upgrade) |
@@ -280,6 +281,32 @@ Java uses `sdkvm mirror`. The others use `sdkvm go mirror`, `sdkvm flutter mirro
 | `set <vendor> <url>` | Write the URL into the config file |
 | `unset <vendor>` | Return to the official source |
 
+### `sdkvm nrm`
+
+Manage the user-level npm registry (where `npm install` fetches packages). The UX follows [nrm](https://github.com/Pana/nrm). This is separate from `mirror` above (SDK install archives).
+
+```sh
+sdkvm nrm ls
+sdkvm nrm current
+sdkvm nrm use taobao
+sdkvm nrm use npm
+sdkvm nrm add myprivate http://xxx/registry
+sdkvm nrm del myprivate
+sdkvm nrm test
+sdkvm nrm test taobao
+```
+
+| Command | Meaning |
+|---|---|
+| `ls` | List built-in and custom registries; `*` marks current |
+| `current` | Print the current registry name and URL |
+| `use <name>` | Switch the user-level registry (`npm config set … --location=user`) |
+| `add <name> <url>` | Add a custom registry to `~/.sdkvm/config.json` |
+| `del <name>` | Delete a custom registry (built-ins cannot be removed) |
+| `test [name]` | Ping registries for latency; omit name to test all |
+
+Built-in names: `npm`, `yarn`, `taobao` (alias `npmmirror`), `tencent`, `cnpm`, `huawei`, `npmMirror`. `npm` must be on `PATH`.
+
 ## Version syntax
 
 `install`, `use`, and `uninstall` share this table. Combinations that are not listed are rejected with a rewrite hint.
@@ -372,6 +399,9 @@ Path: `~/.sdkvm/config.json`. A corrupt file is renamed to `config.json.bak` and
     "golang": "https://golang.google.cn/dl",
     "flutter": "https://mirror.nju.edu.cn/flutter/flutter_infra_release",
     "nodejs": "https://mirror.nju.edu.cn/nodejs-release"
+  },
+  "npmRegistries": {
+    "myprivate": "http://xxx/registry/"
   }
 }
 ```
@@ -381,6 +411,7 @@ Path: `~/.sdkvm/config.json`. A corrupt file is renamed to `config.json.bak` and
 | `version` | Schema version | `1` |
 | `defaultVendor` | Java distribution used when the vendor prefix is omitted | `"temurin"` |
 | `mirror` | Vendor id to mirror root URL. Ids are unique across SDKs | `{}` |
+| `npmRegistries` | Custom npm registries from `sdkvm nrm add` | `{}` |
 
 ### Environment variables
 
@@ -455,6 +486,10 @@ Pass the full prerelease, for example `sdkvm flutter install 3.49.0-0.1.pre`. `l
 
 A script install launches the CLI with `~/.sdkvm/runtime`, so `sdkvm node use` does not affect it. An npm global install follows the `node` on `PATH`. A Node older than 18.15 can stop the CLI; `sdkvm node use 22` brings it back.
 
+### What is the difference between `nrm` and `mirror`?
+
+`sdkvm nrm` changes the npm package registry (affects `npm install`). `sdkvm mirror` changes download URLs for JDK / Go / Flutter / Node install archives. They are independent.
+
 ### Proxies
 
 `HTTPS_PROXY` is not read. A transparent system proxy works.
@@ -506,7 +541,7 @@ npm run build
 
 ```
 src/
-├── cli/       # install / use / ls / uninstall / mirror / upgrade
+├── cli/       # install / use / ls / uninstall / mirror / nrm / upgrade
 ├── core/      # version parsing, registry, config, file lock
 ├── sdk/       # java / go / flutter / node: directories, env vars, version syntax
 ├── vendor/    # temurin / zulu / corretto / golang / flutter / nodejs, plus mirror rewrite

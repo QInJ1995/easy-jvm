@@ -26,8 +26,11 @@ describe('config', () => {
   it('roundtrip', () => {
     const c = loadConfig();
     c.mirror.temurin = 'https://mirrors.nju.edu.cn/adoptium';
+    c.npmRegistries.myprivate = 'http://xxx/registry/';
     saveConfig(c);
-    expect(loadConfig().mirror.temurin).toBe('https://mirrors.nju.edu.cn/adoptium');
+    const loaded = loadConfig();
+    expect(loaded.mirror.temurin).toBe('https://mirrors.nju.edu.cn/adoptium');
+    expect(loaded.npmRegistries.myprivate).toBe('http://xxx/registry/');
   });
 
   it('corrupt file → backup + defaults', () => {

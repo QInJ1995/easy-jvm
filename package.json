@@ -1,6 +1,6 @@
 {
   "name": "sdkvm",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "SDK version manager — Java (Temurin / Zulu / Corretto), Go, Flutter & Node.js",
   "type": "module",
   "bin": {

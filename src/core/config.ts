@@ -9,17 +9,20 @@ export interface SdkvmConfig {
   defaultVendor: string;
   /** vendor id（跨全部 SDK 类型全局唯一）→ 镜像根 URL */
   mirror: Partial<Record<string, string | null>>;
+  /** 用户自定义 npm registry 名 → URL（sdkvm nrm add/del） */
+  npmRegistries: Record<string, string>;
 }
 
 export const DEFAULT_CONFIG: SdkvmConfig = {
   version: 1,
   defaultVendor: 'temurin',
   mirror: {},
+  npmRegistries: {},
 };
 
 export function loadConfig(): SdkvmConfig {
   const file = paths.config();
-  if (!fs.existsSync(file)) return { ...DEFAULT_CONFIG, mirror: {} };
+  if (!fs.existsSync(file)) return { ...DEFAULT_CONFIG, mirror: {}, npmRegistries: {} };
   try {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<SdkvmConfig>;
     const config: SdkvmConfig = {
@@ -29,10 +32,16 @@ export function loadConfig(): SdkvmConfig {
           ? parsed.defaultVendor
           : 'temurin',
       mirror: {},
+      npmRegistries: {},
     };
     if (parsed.mirror && typeof parsed.mirror === 'object') {
       for (const [id, v] of Object.entries(parsed.mirror)) {
         if (typeof v === 'string' && v.length > 0) config.mirror[id] = v;
+      }
+    }
+    if (parsed.npmRegistries && typeof parsed.npmRegistries === 'object') {
+      for (const [id, v] of Object.entries(parsed.npmRegistries)) {
+        if (typeof v === 'string' && v.length > 0) config.npmRegistries[id] = v;
       }
     }
     return config;
@@ -45,7 +54,7 @@ export function loadConfig(): SdkvmConfig {
       // 备份失败也继续用默认值
     }
     void err;
-    return { ...DEFAULT_CONFIG, mirror: {} };
+    return { ...DEFAULT_CONFIG, mirror: {}, npmRegistries: {} };
   }
 }
 

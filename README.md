@@ -178,7 +178,8 @@ Java 使用裸命令（`sdkvm install`）或 `sdkvm java`，两者等价。Go、
 | `sdkvm ls` / `sdkvm ls -r` | 列出已安装版本 / 可安装版本线 |
 | `sdkvm current` | 显示全部 SDK 的当前版本 |
 | `sdkvm uninstall <version>` | 卸载一个版本 |
-| `sdkvm mirror show\|set\|unset` | 管理下载镜像 |
+| `sdkvm mirror show\|set\|unset` | 管理 SDK 下载镜像（安装包，不是 npm 包源） |
+| `sdkvm nrm ls\|use\|current\|add\|del\|test` | 管理用户级 npm registry（类似 nrm） |
 | `sdkvm java\|go\|flutter\|node …` | 各 SDK 的完整命令组 |
 | `sdkvm version` | 打印 CLI 版本（同 `sdkvm --version`） |
 | `sdkvm upgrade` | 升级 CLI。见[升级](#升级) |
@@ -280,6 +281,32 @@ Java 用 `sdkvm mirror`，其余用 `sdkvm go mirror`、`sdkvm flutter mirror`�
 | `set <vendor> <url>` | 写入配置文件 |
 | `unset <vendor>` | 恢复官方源 |
 
+### `sdkvm nrm`
+
+管理用户级 npm registry（`npm install` 拉包的地址），风格接近 [nrm](https://github.com/Pana/nrm)。与上面的 `mirror`（SDK 安装包下载）无关。
+
+```sh
+sdkvm nrm ls
+sdkvm nrm current
+sdkvm nrm use taobao
+sdkvm nrm use npm
+sdkvm nrm add myprivate http://xxx/registry
+sdkvm nrm del myprivate
+sdkvm nrm test
+sdkvm nrm test taobao
+```
+
+| 命令 | 说明 |
+|---|---|
+| `ls` | 列出内置源与自定义源，`*` 标当前 |
+| `current` | 打印当前 registry 名称与 URL |
+| `use <name>` | 切换用户级 registry（`npm config set … --location=user`） |
+| `add <name> <url>` | 添加自定义源，写入 `~/.sdkvm/config.json` |
+| `del <name>` | 删除自定义源（不能删内置名） |
+| `test [name]` | 探测延迟；省略 name 则测全部 |
+
+内置名：`npm`、`yarn`、`taobao`（别名 `npmmirror`）、`tencent`、`cnpm`、`huawei`、`npmMirror`。需要本机 PATH 上已有 `npm`。
+
 ## 版本语法
 
 `install`、`use`、`uninstall` 共用下表。未列出的组合会被拒绝并给出改写提示。
@@ -372,6 +399,9 @@ Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变�
     "golang": "https://golang.google.cn/dl",
     "flutter": "https://mirror.nju.edu.cn/flutter/flutter_infra_release",
     "nodejs": "https://mirror.nju.edu.cn/nodejs-release"
+  },
+  "npmRegistries": {
+    "myprivate": "http://xxx/registry/"
   }
 }
 ```
@@ -381,6 +411,7 @@ Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变�
 | `version` | schema 版本 | `1` |
 | `defaultVendor` | Java 省略厂商前缀时的发行版 | `"temurin"` |
 | `mirror` | 厂商 id 到镜像根 URL。id 在全部 SDK 中唯一 | `{}` |
+| `npmRegistries` | `sdkvm nrm add` 写入的自定义 npm 源 | `{}` |
 
 ### 环境变量
 
@@ -455,6 +486,10 @@ fish_add_path $JAVA_HOME/bin
 
 脚本安装用 `~/.sdkvm/runtime` 启动 CLI，`sdkvm node use` 不影响它。npm 全局安装跟随 `PATH` 上的 `node`；切到 18.15 以前时 CLI 可能无法启动，`sdkvm node use 22` 可以恢复。
 
+### `nrm` 和 `mirror` 有什么区别
+
+`sdkvm nrm` 改的是 npm 包 registry（影响 `npm install`）。`sdkvm mirror` 改的是 JDK / Go / Flutter / Node 安装包的下载地址。两者独立。
+
 ### 代理
 
 当前不读取 `HTTPS_PROXY`。可以使用系统级透明代理。
@@ -506,7 +541,7 @@ npm run build
 
 ```
 src/
-├── cli/       # install / use / ls / uninstall / mirror / upgrade
+├── cli/       # install / use / ls / uninstall / mirror / nrm / upgrade
 ├── core/      # 版本解析、注册表、配置、文件锁
 ├── sdk/       # java / go / flutter / node 的目录、环境变量、版本语法
 ├── vendor/    # temurin / zulu / corretto / golang / flutter / nodejs 与镜像改写

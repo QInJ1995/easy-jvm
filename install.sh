@@ -31,9 +31,20 @@ fetch() {
   url=$1
   dest=$2
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$url" -o "$dest"
+    if ! curl -fsSL "$url" -o "$dest"; then
+      echo "sdkvm: download failed: $url" >&2
+      case "$url" in
+        */releases/*/download/*)
+          echo "sdkvm: hint: publish a GitHub Release (push a v* tag) with sdkvm.tgz, or install via: npm install -g sdkvm" >&2
+          ;;
+      esac
+      exit 1
+    fi
   elif command -v wget >/dev/null 2>&1; then
-    wget -qO "$dest" "$url"
+    if ! wget -qO "$dest" "$url"; then
+      echo "sdkvm: download failed: $url" >&2
+      exit 1
+    fi
   else
     echo "sdkvm: curl or wget is required" >&2
     exit 1

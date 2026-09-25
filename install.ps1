@@ -56,8 +56,12 @@ try {
   if (-not $expected -or $expected -ne $actual) { throw 'sdkvm: Node.js checksum mismatch' }
 
   Write-Host 'sdkvm: downloading CLI'
-  Invoke-WebRequest -Uri "$ReleaseBase/latest/download/sdkvm.tgz" -OutFile (Join-Path $tmpdir 'sdkvm.tgz')
-  Invoke-WebRequest -Uri "$ReleaseBase/latest/download/SHA256SUMS" -OutFile (Join-Path $tmpdir 'SHA256SUMS')
+  try {
+    Invoke-WebRequest -Uri "$ReleaseBase/latest/download/sdkvm.tgz" -OutFile (Join-Path $tmpdir 'sdkvm.tgz')
+    Invoke-WebRequest -Uri "$ReleaseBase/latest/download/SHA256SUMS" -OutFile (Join-Path $tmpdir 'SHA256SUMS')
+  } catch {
+    throw "sdkvm: download failed ($ReleaseBase/latest/download/sdkvm.tgz). Publish a GitHub Release (push a v* tag) with sdkvm.tgz, or install via: npm install -g sdkvm"
+  }
   $expected = Get-ExpectedHash (Join-Path $tmpdir 'SHA256SUMS') 'sdkvm.tgz'
   $actual = Get-FileSha256 (Join-Path $tmpdir 'sdkvm.tgz')
   if (-not $expected -or $expected -ne $actual) { throw 'sdkvm: CLI checksum mismatch' }

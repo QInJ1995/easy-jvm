@@ -12,7 +12,7 @@
 
 中文 | [English](./README.en.md)
 
-像 [nvm](https://github.com/nvm-sh/nvm) 管理 Node.js 一样管理 **Java JDK**、**Go 工具链**、**Flutter SDK** 与 **Node.js 运行时**。
+管理 **Java JDK**、**Go 工具链**、**Flutter SDK** 与 **Node.js 运行时**。
 
 </div>
 
@@ -453,7 +453,7 @@ fish_add_path $JAVA_HOME/bin
 
 ### CLI 会不会被自己管理的 Node 影响
 
-脚本安装用 `~/.sdkvm/runtime` 启动 CLI，`sdkvm node use` 不影响它。npm 全局安装跟随 `PATH` 上的 `node`；切到 18.15 以前时 CLI 可能无法启动，`sdkvm node use 22` 可以恢复。与 nvm 可以共存：两边都会把自己的目录插到 `PATH` 前面，后加载的先生效。
+脚本安装用 `~/.sdkvm/runtime` 启动 CLI，`sdkvm node use` 不影响它。npm 全局安装跟随 `PATH` 上的 `node`；切到 18.15 以前时 CLI 可能无法启动，`sdkvm node use 22` 可以恢复。
 
 ### 代理
 

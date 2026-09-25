@@ -12,7 +12,7 @@
 
 [中文](./README.md) | English
 
-Manage **Java JDKs**, the **Go toolchain**, the **Flutter SDK**, and the **Node.js runtime** the way [nvm](https://github.com/nvm-sh/nvm) manages Node.js.
+Manage **Java JDKs**, the **Go toolchain**, the **Flutter SDK**, and the **Node.js runtime**.
 
 </div>
 
@@ -453,7 +453,7 @@ Pass the full prerelease, for example `sdkvm flutter install 3.49.0-0.1.pre`. `l
 
 ### Does a managed Node break sdkvm itself?
 
-A script install launches the CLI with `~/.sdkvm/runtime`, so `sdkvm node use` does not affect it. An npm global install follows the `node` on `PATH`. A Node older than 18.15 can stop the CLI; `sdkvm node use 22` brings it back. sdkvm can sit next to nvm. Both prepend their own directories, and whichever rc loads later wins.
+A script install launches the CLI with `~/.sdkvm/runtime`, so `sdkvm node use` does not affect it. An npm global install follows the `node` on `PATH`. A Node older than 18.15 can stop the CLI; `sdkvm node use 22` brings it back.
 
 ### Proxies
 

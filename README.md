@@ -84,7 +84,7 @@ bun add -g sdkvm
 
 ### 安装脚本
 
-不要求本机已经安装 Node.js。
+不要求本机已经安装 Node.js。需要仓库已有带 `sdkvm.tgz` 与 `SHA256SUMS` 的 GitHub Release（打 `v*` tag 后由 CI 上传）。
 
 macOS / Linux：
 
@@ -104,7 +104,7 @@ irm https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.ps1 | iex
 2. 从 GitHub Release 下载 `sdkvm.tgz`，校验 SHA-256 后解压到 `~/.sdkvm/cli`。
 3. 写入 `~/.local/bin/sdkvm`（Windows 为 `%USERPROFILE%\.local\bin\sdkvm.cmd`）。目录不在 `PATH` 中时，脚本会打印需要追加的那一行。
 
-`SDKVM_HOME` 会同时改 runtime 与 CLI 的位置。国内可换下载前缀：
+数据根与 CLI 一致：优先 `SDKVM_HOME`，其次旧名 `JVM_HOME`，默认 `~/.sdkvm`。runtime 与 CLI 都落在该根下。国内可换下载前缀：
 
 ```sh
 SDKVM_NODE_DIST=https://npmmirror.com/mirrors/node \

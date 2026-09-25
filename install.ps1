@@ -1,16 +1,30 @@
 # Install sdkvm without a pre-existing Node.js.
 # Usage: irm https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.ps1 | iex
+# Requires a published GitHub Release with sdkvm.tgz and SHA256SUMS.
 $ErrorActionPreference = 'Stop'
 
 $RuntimeNode = if ($env:SDKVM_RUNTIME_NODE) { $env:SDKVM_RUNTIME_NODE } else { '22.20.0' }
 $NodeDist = if ($env:SDKVM_NODE_DIST) { $env:SDKVM_NODE_DIST.TrimEnd('/') } else { 'https://nodejs.org/dist' }
 $ReleaseBase = if ($env:SDKVM_RELEASE_BASE) { $env:SDKVM_RELEASE_BASE.TrimEnd('/') } else { 'https://github.com/QInJ1995/sdkvm/releases' }
-$Root = if ($env:SDKVM_HOME) { $env:SDKVM_HOME } else { Join-Path $env:USERPROFILE '.sdkvm' }
+# Align with CLI envOverride(SDKVM_HOME, JVM_HOME)
+if ($env:SDKVM_HOME) {
+  $Root = $env:SDKVM_HOME
+} elseif ($env:JVM_HOME) {
+  $Root = $env:JVM_HOME
+} else {
+  $Root = Join-Path $env:USERPROFILE '.sdkvm'
+}
 $BinDir = Join-Path $env:USERPROFILE '.local\bin'
 
-$arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
-if ($env:PROCESSOR_ARCHITECTURE -ne 'AMD64' -and $env:PROCESSOR_ARCHITECTURE -ne 'ARM64') {
-  throw "sdkvm: unsupported architecture $($env:PROCESSOR_ARCHITECTURE)"
+# Prefer the machine arch under WOW64 (32-bit PowerShell on 64-bit Windows)
+$procArch = $env:PROCESSOR_ARCHITECTURE
+if ($env:PROCESSOR_ARCHITEW6432) { $procArch = $env:PROCESSOR_ARCHITEW6432 }
+if ($procArch -eq 'ARM64') {
+  $arch = 'arm64'
+} elseif ($procArch -eq 'AMD64') {
+  $arch = 'x64'
+} else {
+  throw "sdkvm: unsupported architecture $procArch"
 }
 
 $nodeName = "node-v$RuntimeNode-win-$arch"
@@ -29,6 +43,15 @@ function Get-ExpectedHash([string]$sumsPath, [string]$fileName) {
     }
   }
   return $null
+}
+
+# Remove a directory junction without following into the target (PS 5.x Remove-Item risk).
+function Remove-Junction([string]$path) {
+  if (-not (Test-Path -LiteralPath $path)) { return }
+  cmd.exe /c "rmdir `"$path`""
+  if (Test-Path -LiteralPath $path) {
+    throw "sdkvm: failed to remove junction $path"
+  }
 }
 
 try {
@@ -51,21 +74,37 @@ try {
   if (Test-Path (Join-Path $runtimeDir $nodeName)) { Remove-Item -Recurse -Force (Join-Path $runtimeDir $nodeName) }
   tar -xf (Join-Path $tmpdir $nodeArchive) -C $runtimeDir
   $current = Join-Path $runtimeDir 'current'
-  if (Test-Path $current) { Remove-Item -Force $current }
+  Remove-Junction $current
   New-Item -ItemType Junction -Path $current -Target (Join-Path $runtimeDir $nodeName) | Out-Null
 
+  # Atomic CLI replace: extract + validate, then rename; restore bak on failure
   $staging = Join-Path $Root 'cli.next'
+  $bak = Join-Path $Root 'cli.bak'
+  $cli = Join-Path $Root 'cli'
   if (Test-Path $staging) { Remove-Item -Recurse -Force $staging }
+  if (Test-Path $bak) { Remove-Item -Recurse -Force $bak }
   New-Item -ItemType Directory -Path $staging | Out-Null
   tar -xf (Join-Path $tmpdir 'sdkvm.tgz') -C $staging
-  $cli = Join-Path $Root 'cli'
-  if (Test-Path $cli) { Remove-Item -Recurse -Force $cli }
-  Move-Item (Join-Path $staging 'package') $cli
-  Remove-Item -Recurse -Force $staging
+  $unpacked = Join-Path $staging 'package'
+  if (-not (Test-Path (Join-Path $unpacked 'package.json'))) {
+    Remove-Item -Recurse -Force $staging
+    throw 'sdkvm: release archive missing package/package.json'
+  }
+  if (Test-Path $cli) { Move-Item $cli $bak }
+  try {
+    Move-Item $unpacked $cli
+  } catch {
+    if ((Test-Path $bak) -and -not (Test-Path $cli)) { Move-Item $bak $cli }
+    if (Test-Path $staging) { Remove-Item -Recurse -Force $staging }
+    throw
+  }
+  if (Test-Path $staging) { Remove-Item -Recurse -Force $staging }
+  if (Test-Path $bak) { Remove-Item -Recurse -Force $bak }
 
   @"
 @echo off
 set "ROOT=%SDKVM_HOME%"
+if "%ROOT%"=="" set "ROOT=%JVM_HOME%"
 if "%ROOT%"=="" set "ROOT=$Root"
 "%ROOT%\runtime\current\node.exe" "%ROOT%\cli\dist\index.js" %*
 "@ | Set-Content -Encoding ascii (Join-Path $BinDir 'sdkvm.cmd')

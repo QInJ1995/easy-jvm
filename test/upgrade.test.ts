@@ -18,14 +18,46 @@ afterEach(() => {
 });
 
 describe('upgrade install method', () => {
-  it('npm install has no cli package', () => {
-    expect(isScriptInstall(home)).toBe(false);
+  it('npm layout is not a script install', () => {
+    expect(
+      isScriptInstall({
+        home,
+        packageRoot: '/usr/lib/node_modules/sdkvm',
+        execPath: '/usr/bin/node',
+      }),
+    ).toBe(false);
   });
 
-  it('script install is the cli directory', () => {
+  it('detects package root under home/cli', () => {
+    expect(
+      isScriptInstall({
+        home,
+        packageRoot: path.join(home, 'cli'),
+        execPath: '/usr/bin/node',
+      }),
+    ).toBe(true);
+  });
+
+  it('detects execPath under home/runtime', () => {
+    expect(
+      isScriptInstall({
+        home,
+        packageRoot: '/usr/lib/node_modules/sdkvm',
+        execPath: path.join(home, 'runtime', 'current', 'bin', 'node'),
+      }),
+    ).toBe(true);
+  });
+
+  it('ignores a leftover cli directory when the process is npm', () => {
     fs.mkdirSync(path.join(home, 'cli'), { recursive: true });
     fs.writeFileSync(path.join(home, 'cli', 'package.json'), '{"version":"1.0.0"}\n');
-    expect(isScriptInstall(home)).toBe(true);
+    expect(
+      isScriptInstall({
+        home,
+        packageRoot: '/usr/lib/node_modules/sdkvm',
+        execPath: '/usr/bin/node',
+      }),
+    ).toBe(false);
   });
 });
 
@@ -41,7 +73,7 @@ describe('checksumFor', () => {
 });
 
 describe('replaceCliPackage', () => {
-  it('replaces cli and leaves runtime in place', () => {
+  it('replaces cli and leaves runtime in place', async () => {
     const runtime = path.join(home, 'runtime', 'current');
     fs.mkdirSync(runtime, { recursive: true });
     fs.writeFileSync(path.join(runtime, 'marker'), 'keep');
@@ -55,11 +87,24 @@ describe('replaceCliPackage', () => {
     const archive = path.join(home, 'sdkvm.tgz');
     execFileSync('tar', ['-czf', archive, '-C', path.join(home, 'stage'), 'package']);
 
-    return replaceCliPackage(archive, home).then(() => {
-      expect(fs.readFileSync(path.join(home, 'cli', 'package.json'), 'utf8')).toContain('1.2.3');
-      expect(fs.readFileSync(path.join(runtime, 'marker'), 'utf8')).toBe('keep');
-      expect(fs.existsSync(path.join(home, 'cli.next'))).toBe(false);
-      expect(fs.existsSync(path.join(home, 'cli.bak'))).toBe(false);
-    });
+    await replaceCliPackage(archive, home);
+    expect(fs.readFileSync(path.join(home, 'cli', 'package.json'), 'utf8')).toContain('1.2.3');
+    expect(fs.readFileSync(path.join(runtime, 'marker'), 'utf8')).toBe('keep');
+    expect(fs.existsSync(path.join(home, 'cli.next'))).toBe(false);
+    expect(fs.existsSync(path.join(home, 'cli.bak'))).toBe(false);
+  });
+
+  it('rejects an archive without package/package.json and keeps the old cli', async () => {
+    fs.mkdirSync(path.join(home, 'cli'), { recursive: true });
+    fs.writeFileSync(path.join(home, 'cli', 'package.json'), '{"version":"0.0.1"}\n');
+    const stage = path.join(home, 'stage', 'other');
+    fs.mkdirSync(stage, { recursive: true });
+    fs.writeFileSync(path.join(stage, 'readme.txt'), 'nope\n');
+    const archive = path.join(home, 'bad.tgz');
+    execFileSync('tar', ['-czf', archive, '-C', path.join(home, 'stage'), 'other']);
+
+    await expect(replaceCliPackage(archive, home)).rejects.toThrow(/missing package\/package\.json/);
+    expect(fs.readFileSync(path.join(home, 'cli', 'package.json'), 'utf8')).toContain('0.0.1');
+    expect(fs.existsSync(path.join(home, 'cli.next'))).toBe(false);
   });
 });

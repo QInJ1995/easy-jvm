@@ -84,7 +84,7 @@ The CLI then runs on whatever `node` is first on `PATH`. Switching to a Node old
 
 ### Install script
 
-No preinstalled Node.js is required.
+No preinstalled Node.js is required. A GitHub Release that already contains `sdkvm.tgz` and `SHA256SUMS` is required (uploaded by CI after a `v*` tag).
 
 macOS / Linux:
 
@@ -104,7 +104,7 @@ The script:
 2. Downloads `sdkvm.tgz` from the GitHub Release, checks SHA-256, and extracts it to `~/.sdkvm/cli`.
 3. Writes `~/.local/bin/sdkvm` (on Windows, `%USERPROFILE%\.local\bin\sdkvm.cmd`). If that directory is not on `PATH`, the script prints the line to add.
 
-`SDKVM_HOME` moves both the runtime and the CLI. Override download prefixes when needed:
+The data root matches the CLI: `SDKVM_HOME` first, then the legacy `JVM_HOME`, otherwise `~/.sdkvm`. Both the runtime and the CLI live under that root. Override download prefixes when needed:
 
 ```sh
 SDKVM_NODE_DIST=https://npmmirror.com/mirrors/node \

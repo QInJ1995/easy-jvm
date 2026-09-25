@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { paths, sdkvmHome } from '../core/paths.js';
 import { detectPlatform } from '../core/platform.js';
 import { downloadFile } from '../net/download.js';
@@ -13,9 +14,32 @@ export const RELEASE_REPO = 'QInJ1995/sdkvm';
 export const RELEASE_ASSET = 'sdkvm.tgz';
 export const RELEASE_SUMS = 'SHA256SUMS';
 
-/** 脚本安装把 CLI 放在 ~/.sdkvm/cli；没有该目录则视为 npm 全局安装。 */
-export function isScriptInstall(home = sdkvmHome()): boolean {
-  return fs.existsSync(path.join(home, 'cli', 'package.json'));
+/** 当前进程加载的 CLI 包根（dist/index.js 的上一级）。 */
+export function packageRoot(metaUrl = import.meta.url): string {
+  return path.resolve(path.dirname(fileURLToPath(metaUrl)), '..');
+}
+
+export interface ScriptInstallProbe {
+  home?: string;
+  /** 覆盖 import.meta 解析出的包根（测试用） */
+  packageRoot?: string;
+  /** 覆盖 process.execPath（测试用） */
+  execPath?: string;
+}
+
+/**
+ * 按「当前进程如何启动」判断是否为脚本安装。
+ * 包根位于 home/cli，或 node 可执行文件位于 home/runtime，即视为脚本安装。
+ * 不单靠磁盘上有没有 cli/ 目录，避免混装时走错升级分支。
+ */
+export function isScriptInstall(probe: ScriptInstallProbe = {}): boolean {
+  const home = path.resolve(probe.home ?? sdkvmHome());
+  const cliRoot = path.resolve(path.join(home, 'cli'));
+  const runtimeRoot = path.resolve(path.join(home, 'runtime'));
+  const pkg = path.resolve(probe.packageRoot ?? packageRoot());
+  if (pkg === cliRoot) return true;
+  const exec = path.resolve(probe.execPath ?? process.execPath);
+  return exec === runtimeRoot || exec.startsWith(runtimeRoot + path.sep);
 }
 
 export function releaseBase(): string {
@@ -53,7 +77,19 @@ export async function replaceCliPackage(archiveFile: string, home = sdkvmHome())
   }
   fs.rmSync(bak, { recursive: true, force: true });
   if (fs.existsSync(cli)) fs.renameSync(cli, bak);
-  fs.renameSync(unpacked, cli);
+  try {
+    fs.renameSync(unpacked, cli);
+  } catch (err) {
+    if (fs.existsSync(bak) && !fs.existsSync(cli)) {
+      try {
+        fs.renameSync(bak, cli);
+      } catch {
+        // 回滚失败时保留 bak，交给外层错误信息
+      }
+    }
+    fs.rmSync(staging, { recursive: true, force: true });
+    throw err;
+  }
   fs.rmSync(bak, { recursive: true, force: true });
   fs.rmSync(staging, { recursive: true, force: true });
 }
@@ -82,5 +118,8 @@ export async function upgradeCommand(): Promise<void> {
   const before = getVersion();
   await replaceCliPackage(dest);
   fs.rmSync(dest, { force: true });
-  log.ok(`upgraded CLI package in ${path.join(sdkvmHome(), 'cli')} (was ${before}); runtime and installed SDKs were left in place`);
+  const after = getVersion();
+  log.ok(
+    `upgraded CLI ${before} → ${after} in ${path.join(sdkvmHome(), 'cli')}; runtime and installed SDKs were left in place`,
+  );
 }

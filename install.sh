@@ -1,12 +1,20 @@
 #!/bin/sh
 # Install sdkvm without a pre-existing Node.js.
 # Usage: curl -fsSL https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.sh | sh
+# Requires a published GitHub Release with sdkvm.tgz and SHA256SUMS.
 set -eu
 
 RUNTIME_NODE_VERSION="${SDKVM_RUNTIME_NODE:-22.20.0}"
 NODE_DIST="${SDKVM_NODE_DIST:-https://nodejs.org/dist}"
 RELEASE_BASE="${SDKVM_RELEASE_BASE:-https://github.com/QInJ1995/sdkvm/releases}"
-ROOT="${SDKVM_HOME:-$HOME/.sdkvm}"
+# 与 CLI 的 envOverride(SDKVM_HOME, JVM_HOME) 对齐
+if [ -n "${SDKVM_HOME:-}" ]; then
+  ROOT="$SDKVM_HOME"
+elif [ -n "${JVM_HOME:-}" ]; then
+  ROOT="$JVM_HOME"
+else
+  ROOT="$HOME/.sdkvm"
+fi
 BIN_DIR="${HOME}/.local/bin"
 NODE_DIST="${NODE_DIST%/}"
 RELEASE_BASE="${RELEASE_BASE%/}"
@@ -58,6 +66,11 @@ expect_hash() {
   }' "$sums"
 }
 
+# 把路径安全嵌进单引号字符串，供写入 shim
+shell_quote() {
+  printf "%s" "$1" | sed "s/'/'\\\\''/g"
+}
+
 echo "sdkvm: downloading Node.js ${RUNTIME_NODE_VERSION} (${node_os}/${node_arch})"
 fetch "${NODE_DIST}/v${RUNTIME_NODE_VERSION}/${node_archive}" "$tmpdir/$node_archive"
 fetch "${NODE_DIST}/v${RUNTIME_NODE_VERSION}/SHASUMS256.txt" "$tmpdir/SHASUMS256.txt"
@@ -83,16 +96,38 @@ rm -rf "$ROOT/runtime/$node_name"
 tar -xzf "$tmpdir/$node_archive" -C "$ROOT/runtime"
 ln -sfn "$node_name" "$ROOT/runtime/current"
 
-rm -rf "$ROOT/cli.next"
+# 原子替换 CLI：先解压并校验，再 rename；失败时保留旧 cli
+rm -rf "$ROOT/cli.next" "$ROOT/cli.bak"
 mkdir -p "$ROOT/cli.next"
 tar -xzf "$tmpdir/sdkvm.tgz" -C "$ROOT/cli.next"
-rm -rf "$ROOT/cli"
-mv "$ROOT/cli.next/package" "$ROOT/cli"
-rm -rf "$ROOT/cli.next"
+if [ ! -f "$ROOT/cli.next/package/package.json" ]; then
+  echo "sdkvm: release archive missing package/package.json" >&2
+  rm -rf "$ROOT/cli.next"
+  exit 1
+fi
+if [ -e "$ROOT/cli" ]; then
+  mv "$ROOT/cli" "$ROOT/cli.bak"
+fi
+if ! mv "$ROOT/cli.next/package" "$ROOT/cli"; then
+  if [ -e "$ROOT/cli.bak" ] && [ ! -e "$ROOT/cli" ]; then
+    mv "$ROOT/cli.bak" "$ROOT/cli"
+  fi
+  rm -rf "$ROOT/cli.next"
+  echo "sdkvm: failed to install CLI package" >&2
+  exit 1
+fi
+rm -rf "$ROOT/cli.next" "$ROOT/cli.bak"
 
+quoted_root=$(shell_quote "$ROOT")
 cat > "$BIN_DIR/sdkvm" <<EOF
 #!/bin/sh
-ROOT="\${SDKVM_HOME:-$ROOT}"
+if [ -n "\${SDKVM_HOME:-}" ]; then
+  ROOT="\$SDKVM_HOME"
+elif [ -n "\${JVM_HOME:-}" ]; then
+  ROOT="\$JVM_HOME"
+else
+  ROOT='$quoted_root'
+fi
 exec "\$ROOT/runtime/current/bin/node" "\$ROOT/cli/dist/index.js" "\$@"
 EOF
 chmod +x "$BIN_DIR/sdkvm"

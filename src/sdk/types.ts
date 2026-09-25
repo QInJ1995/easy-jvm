@@ -18,8 +18,13 @@ export interface SdkTypeSpec {
   readonly currentLinkName: string;
   /** 切换时导出的环境变量名：JAVA_HOME / GOROOT */
   readonly envVar: string;
-  /** 是否支持 lts 语义（java 有 LTS，go/flutter 没有） */
+  /** 是否支持 lts 语义（java / node 有，go / flutter 没有） */
   readonly supportsLts: boolean;
+  /**
+   * 已安装版本里哪些 major 算 LTS（仅 supportsLts 时使用）。
+   * java 对齐 Adoptium；node 为偶数年 major（官方 LTS 线约定）。
+   */
+  isLtsMajor?(major: number): boolean;
   /** 有序厂商列表，[0] 为默认厂商 */
   readonly vendors: readonly Vendor[];
   parseUserSpec(input: string): UserSpec;

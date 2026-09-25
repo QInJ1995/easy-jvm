@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { once } from 'node:events';
 import fs from 'node:fs';
 import path from 'node:path';
 import { httpFetch } from './http.js';
@@ -45,7 +46,7 @@ export async function downloadFile(
     if (!res.body) throw new SdkvmError(`Empty response body: ${url}`);
     for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
       timer.refresh();
-      out.write(chunk);
+      if (!out.write(chunk)) await once(out, 'drain');
       hash.update(chunk);
       bytes += chunk.byteLength;
       onProgress?.(bytes, total);

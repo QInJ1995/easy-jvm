@@ -13,6 +13,6 @@ export class SdkvmError extends Error {
 
 export function toSdkvmError(err: unknown): SdkvmError {
   if (err instanceof SdkvmError) return err;
-  if (err instanceof Error) return new SdkvmError(err.message, { hint: err.stack });
+  if (err instanceof Error) return new SdkvmError(err.message);
   return new SdkvmError(String(err));
 }

@@ -12,7 +12,7 @@ function mkJdk(dirName: string): void {
 }
 
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'jvm-registry-'));
+  home = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkvm-registry-'));
   process.env.SDKVM_HOME = home;
 });
 
@@ -58,6 +58,17 @@ describe('registry', () => {
     mkJdk('temurin-21.0.5+11');
     mkJdk('temurin-22.0.1+2');
     expect(findInstalled('java', 'lts').version.major).toBe(21);
+  });
+
+  it('node lts matches even majors, not Java LTS set', () => {
+    fs.mkdirSync(path.join(home, 'nodes', 'nodejs-22.20.0'), { recursive: true });
+    fs.mkdirSync(path.join(home, 'nodes', 'nodejs-21.0.0'), { recursive: true });
+    fs.mkdirSync(path.join(home, 'nodes', 'nodejs-24.2.0'), { recursive: true });
+    expect(findInstalled('node', 'lts').dirPath.endsWith('nodejs-24.2.0')).toBe(true);
+  });
+
+  it('go lts is rejected', () => {
+    expect(() => findInstalled('go', 'lts')).toThrow(SdkvmError);
   });
 
   it('no match throws with installed list', () => {

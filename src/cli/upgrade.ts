@@ -1,6 +1,8 @@
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withLock } from '../core/lock.js';
 import { paths, sdkvmHome } from '../core/paths.js';
 import { detectPlatform } from '../core/platform.js';
 import { downloadFile } from '../net/download.js';
@@ -62,11 +64,9 @@ export function checksumFor(sumsText: string, fileName: string): string | null {
   return null;
 }
 
-/** 用已校验的 npm pack 归档替换 CLI 目录，不动 runtime 与已装 SDK。 */
-export async function replaceCliPackage(archiveFile: string, home = sdkvmHome()): Promise<void> {
+/** 解压并校验归档，返回 package 目录路径（位于 home/cli.next/package）。 */
+export async function prepareCliPackage(archiveFile: string, home = sdkvmHome()): Promise<string> {
   const staging = path.join(home, 'cli.next');
-  const bak = path.join(home, 'cli.bak');
-  const cli = path.join(home, 'cli');
   fs.rmSync(staging, { recursive: true, force: true });
   fs.mkdirSync(home, { recursive: true });
   await extractArchive(archiveFile, 'tar.gz', staging, detectPlatform());
@@ -75,6 +75,15 @@ export async function replaceCliPackage(archiveFile: string, home = sdkvmHome())
     fs.rmSync(staging, { recursive: true, force: true });
     throw new SdkvmError('Release archive is missing package/package.json', { hint: archiveFile });
   }
+  return unpacked;
+}
+
+/** 用已校验的 npm pack 归档替换 CLI 目录，不动 runtime 与已装 SDK。 */
+export async function replaceCliPackage(archiveFile: string, home = sdkvmHome()): Promise<void> {
+  const staging = path.join(home, 'cli.next');
+  const bak = path.join(home, 'cli.bak');
+  const cli = path.join(home, 'cli');
+  const unpacked = await prepareCliPackage(archiveFile, home);
   fs.rmSync(bak, { recursive: true, force: true });
   if (fs.existsSync(cli)) fs.renameSync(cli, bak);
   try {
@@ -94,32 +103,74 @@ export async function replaceCliPackage(archiveFile: string, home = sdkvmHome())
   fs.rmSync(staging, { recursive: true, force: true });
 }
 
+/** Windows：进程退出后再替换 cli（避免自替换 EPERM）。cli.next/package 须已就绪。 */
+export function scheduleWindowsCliReplace(home: string): void {
+  const script = path.join(home, 'upgrade-apply.cmd');
+  const body = [
+    '@echo off',
+    'setlocal',
+    `set "HOME=${home}"`,
+    'timeout /t 2 /nobreak >nul',
+    'if exist "%HOME%\\cli.bak" rmdir /s /q "%HOME%\\cli.bak"',
+    'if exist "%HOME%\\cli" move /y "%HOME%\\cli" "%HOME%\\cli.bak" >nul',
+    'move /y "%HOME%\\cli.next\\package" "%HOME%\\cli" >nul',
+    'if exist "%HOME%\\cli.bak" rmdir /s /q "%HOME%\\cli.bak"',
+    'if exist "%HOME%\\cli.next" rmdir /s /q "%HOME%\\cli.next"',
+    'del "%~f0"',
+    '',
+  ].join('\r\n');
+  fs.writeFileSync(script, body, 'utf8');
+  const child = spawn('cmd.exe', ['/c', script], {
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
+  });
+  child.unref();
+}
+
 export async function upgradeCommand(): Promise<void> {
   if (!isScriptInstall()) {
     log.info('this install came from npm; upgrade with: npm update -g sdkvm');
+    log.info('or: pnpm update -g sdkvm / yarn global upgrade sdkvm / bun update -g sdkvm');
     return;
   }
-  const sumsUrl = releaseAssetUrl(RELEASE_SUMS);
-  const assetUrl = releaseAssetUrl(RELEASE_ASSET);
-  log.info(`checking ${assetUrl}`);
-  const expected = checksumFor(await httpText(sumsUrl), RELEASE_ASSET);
-  if (!expected) {
-    throw new SdkvmError(`No checksum for ${RELEASE_ASSET}`, { hint: sumsUrl });
-  }
-  fs.mkdirSync(paths.tmp(), { recursive: true });
-  const dest = path.join(paths.tmp(), RELEASE_ASSET);
-  const downloaded = await downloadFile(assetUrl, dest);
-  if (downloaded.sha256 !== expected) {
-    fs.rmSync(dest, { force: true });
-    throw new SdkvmError(`Checksum mismatch for ${RELEASE_ASSET}`, {
-      hint: `expected ${expected}, got ${downloaded.sha256}`,
-    });
-  }
-  const before = getVersion();
-  await replaceCliPackage(dest);
-  fs.rmSync(dest, { force: true });
-  const after = getVersion();
-  log.ok(
-    `upgraded CLI ${before} → ${after} in ${path.join(sdkvmHome(), 'cli')}; runtime and installed SDKs were left in place`,
-  );
+
+  await withLock(async () => {
+    const sumsUrl = releaseAssetUrl(RELEASE_SUMS);
+    const assetUrl = releaseAssetUrl(RELEASE_ASSET);
+    log.info(`checking ${assetUrl}`);
+    const expected = checksumFor(await httpText(sumsUrl), RELEASE_ASSET);
+    if (!expected) {
+      throw new SdkvmError(`No checksum for ${RELEASE_ASSET}`, { hint: sumsUrl });
+    }
+    fs.mkdirSync(paths.cache(), { recursive: true });
+    const dest = path.join(paths.cache(), RELEASE_ASSET);
+    try {
+      const downloaded = await downloadFile(assetUrl, dest);
+      if (downloaded.sha256 !== expected) {
+        throw new SdkvmError(`Checksum mismatch for ${RELEASE_ASSET}`, {
+          hint: `expected ${expected}, got ${downloaded.sha256}`,
+        });
+      }
+      const before = getVersion();
+      const home = sdkvmHome();
+      // Windows 不能可靠地替换正在运行的 CLI：先解压，退出后再由脚本换目录
+      if (process.platform === 'win32') {
+        await prepareCliPackage(dest, home);
+        scheduleWindowsCliReplace(home);
+        log.ok(
+          `upgrade ${before} scheduled; exit this process and wait a moment for ${path.join(home, 'cli')} to refresh`,
+        );
+        return;
+      }
+      await replaceCliPackage(dest, home);
+      const after = getVersion();
+      log.ok(
+        `upgraded CLI ${before} → ${after} in ${path.join(home, 'cli')}; runtime and installed SDKs were left in place`,
+      );
+    } finally {
+      fs.rmSync(dest, { force: true });
+      fs.rmSync(`${dest}.part`, { force: true });
+    }
+  });
 }

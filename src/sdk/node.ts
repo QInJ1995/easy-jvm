@@ -10,6 +10,8 @@ export const nodeSdk: SdkTypeSpec = {
   currentLinkName: 'current-node',
   envVar: 'NODE_HOME',
   supportsLts: true,
+  // Node.js LTS 发布线为偶数年 major（18 / 20 / 22 / 24 …）
+  isLtsMajor: (major) => major >= 4 && major % 2 === 0,
   vendors: NODE_VENDORS,
   parseUserSpec: parseNodeUserSpec,
   parseDirName: parseNodeDirName,

@@ -1,7 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { SdkVersion } from './version.js';
-import { LTS_MAJORS } from './version.js';
 import { paths } from './paths.js';
 import { SdkvmError } from '../util/errors.js';
 import { readCurrent } from '../fs/link.js';
@@ -68,12 +67,13 @@ export function findInstalled(type: SdkTypeId, specInput: string, vendorArg?: st
       (j) => j.version.major === parsed.major && j.version.minor === parsed.minor,
     );
   } else if (parsed.kind === 'lts') {
-    if (!spec.supportsLts) {
-      throw new SdkvmError('Go has no LTS releases', {
+    const isLtsMajor = spec.isLtsMajor;
+    if (!spec.supportsLts || !isLtsMajor) {
+      throw new SdkvmError(`${spec.label} has no LTS releases`, {
         hint: `Try: ${cmdPath(type)} install latest`,
       });
     }
-    matched = candidates.filter((j) => LTS_MAJORS.has(j.version.major));
+    matched = candidates.filter((j) => isLtsMajor(j.version.major));
   } else if (parsed.kind === 'latest') {
     matched = candidates; // 排序后取最后一个即最新
   } else {

@@ -5,7 +5,6 @@ import { loadConfig } from '../core/config.js';
 import { withLock } from '../core/lock.js';
 import { ensureLayout, paths } from '../core/paths.js';
 import { envGet } from '../core/env.js';
-import { parseUserSpec } from '../core/version.js';
 import { getSdkType } from '../sdk/index.js';
 import type { SdkTypeId } from '../sdk/types.js';
 import { getVendor, resolveVendorId } from '../vendor/index.js';
@@ -16,7 +15,6 @@ import { extractArchive, tmpExtractDir } from '../fs/extract.js';
 import { normalizeExtracted } from '../fs/layout.js';
 import { log } from '../ui/log.js';
 import { createProgress } from '../ui/progress.js';
-import { SdkvmError } from '../util/errors.js';
 import { cmdPath } from './cmdname.js';
 
 /** Windows 上杀软可能短暂锁住新解压的文件导致 rename 失败，重试兜底 */
@@ -80,18 +78,32 @@ export async function installCommand(
     await verifyChecksum(artifact, dl.sha256);
 
     const tmp = tmpExtractDir(paths.tmp());
+    const bak = `${finalDir}.bak`;
     let finalTmp = tmp;
     try {
       log.info('extracting ...');
       await extractArchive(dest, artifact.archive, tmp, platform);
       const normalized = normalizeExtracted(tmp, platform, type);
       finalTmp = normalized.root;
-      if (fs.existsSync(finalDir)) fs.rmSync(finalDir, { recursive: true, force: true });
-      fs.renameSync(normalized.root, finalDir);
+      fs.rmSync(bak, { recursive: true, force: true });
+      if (fs.existsSync(finalDir)) fs.renameSync(finalDir, bak);
+      try {
+        await renameWithRetry(normalized.root, finalDir);
+      } catch (err) {
+        if (fs.existsSync(bak) && !fs.existsSync(finalDir)) {
+          try {
+            fs.renameSync(bak, finalDir);
+          } catch {
+            // 回滚失败时保留 bak
+          }
+        }
+        throw err;
+      }
+      fs.rmSync(bak, { recursive: true, force: true });
     } catch (err) {
       fs.rmSync(finalTmp, { recursive: true, force: true });
       fs.rmSync(tmp, { recursive: true, force: true });
-      throw err instanceof SdkvmError ? err : err;
+      throw err;
     } finally {
       fs.rmSync(dest, { force: true });
       fs.rmSync(paths.tmp(), { recursive: true, force: true });

@@ -56,7 +56,7 @@ export function mirrorCommand(
     if (!mirrorable.includes(vendor)) {
       throw new SdkvmError(`mirroring is only supported for ${mirrorable.join(', ') || 'none'}`);
     }
-    config.mirror[vendor] = null;
+    delete config.mirror[vendor];
     saveConfig(config);
     log.ok(`mirror for ${vendor} cleared (official source)`);
     return;

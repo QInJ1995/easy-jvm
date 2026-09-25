@@ -7,7 +7,7 @@ import { loadConfig, saveConfig } from '../src/core/config.js';
 let home: string;
 
 beforeEach(() => {
-  home = fs.mkdtempSync(path.join(os.tmpdir(), 'jvm-config-'));
+  home = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkvm-config-'));
   process.env.SDKVM_HOME = home;
 });
 

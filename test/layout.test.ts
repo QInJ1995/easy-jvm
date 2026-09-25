@@ -16,7 +16,7 @@ const LIN: Platform = { os: 'linux', arch: 'x64', rawPlatform: 'linux', rawArch:
 let work: string;
 
 beforeAll(() => {
-  work = fs.mkdtempSync(path.join(os.tmpdir(), 'jvm-extract-'));
+  work = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkvm-extract-'));
 });
 
 afterAll(() => {

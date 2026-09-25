@@ -12,9 +12,13 @@ function encoded(ps: string): string[] {
   return ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(ps, 'utf16le').toString('base64')];
 }
 
-/** 当前链接的 %USERPROFILE% 相对形式，如 %USERPROFILE%\.sdkvm\current-java */
+/** 当前链接：默认相对 %USERPROFILE%；SDKVM_HOME 在 home 外时写绝对路径 */
 function currentLinkWin(type: SdkTypeId): string {
-  const rel = path.relative(os.homedir(), paths.current(type));
+  const abs = paths.current(type);
+  const rel = path.relative(os.homedir(), abs);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    return abs;
+  }
   return `%USERPROFILE%\\${rel.split(path.sep).join('\\')}`;
 }
 

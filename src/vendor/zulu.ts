@@ -3,6 +3,7 @@ import { httpJson } from '../net/http.js';
 import { SdkvmError } from '../util/errors.js';
 import { LTS_MAJORS, formatVersion, parseVersion } from '../core/version.js';
 import { temurinVendor } from './temurin.js';
+import { cmdPath } from '../cli/cmdname.js';
 
 const API = 'https://api.azul.com/metadata/v1';
 
@@ -103,7 +104,7 @@ export const zuluVendor: Vendor = {
     const pick = pickPlainJdk(packages, platform, versionPrefix);
     if (!pick) {
       throw new SdkvmError(`No Zulu JDK build matches "${versionPrefix}"`, {
-        hint: 'Run `jvm ls -r` to see available versions.',
+        hint: `Run \`${cmdPath('java')} ls -r\` to see available versions.`,
       });
     }
     const versionStr = pick.java_version.join('.');

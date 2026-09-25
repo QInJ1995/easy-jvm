@@ -19,9 +19,10 @@ async function showSdkVersion(binPath: string, type: SdkTypeId): Promise<void> {
     const { stdout, stderr } = await execFileAsync(binPath, spec.versionCheck.args, {
       timeout: 30_000,
     });
-    const text = spec.versionCheck.stream === 'stdout' ? stdout : stderr;
-    const line = (text || '').split('\n').find((l) => l.includes('version'));
-    if (line) log.info(line.trim());
+    const text = (spec.versionCheck.stream === 'stdout' ? stdout : stderr) || '';
+    const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+    const line = lines.find((l) => /version/i.test(l)) ?? lines[0];
+    if (line) log.info(line);
   } catch {
     // 展示失败不影响切换结果
   }

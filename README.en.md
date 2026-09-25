@@ -425,8 +425,8 @@ A mirror replaces the archive URL only. Version metadata and checksums always co
 
 - URLs are resolved from official APIs: Adoptium, Azul Metadata, Corretto, go.dev/dl, Flutter releases, and nodejs.org/dist `index.json`. Search pages are not scraped.
 - Archives are hashed with SHA-256 as they download. Go, Flutter, and Node.js (official `SHASUMS256.txt`) abort on mismatch. If a Java checksum source is unreachable, sdkvm warns and continues.
-- Before extract, the archive must have a single root and the expected executable. Extraction always targets a fresh empty directory.
-- An install holds `~/.sdkvm/.lock` so concurrent installs do not overwrite each other.
+- After extract, the tree must have a single root and the expected executable. Extraction always targets a fresh empty directory.
+- Install and `sdkvm upgrade` hold `~/.sdkvm/.lock` so concurrent writers do not overwrite each other.
 
 ## FAQ
 
@@ -458,6 +458,16 @@ A script install launches the CLI with `~/.sdkvm/runtime`, so `sdkvm node use` d
 ### Proxies
 
 `HTTPS_PROXY` is not read. A transparent system proxy works.
+
+### Migrating from a legacy `~/.jvm`
+
+Automatic migration was removed. If you still have `~/.jvm` data:
+
+```sh
+mv ~/.jvm ~/.sdkvm
+```
+
+Then delete any `# >>> jvm init >>>` blocks from your shell rc and run `sdkvm use <version>` once to write the new rc / environment entries. On Windows, move the data under `%USERPROFILE%\.sdkvm` and re-run `use`.
 
 ### Isolate data for CI or multiple users
 

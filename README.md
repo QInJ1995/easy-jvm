@@ -425,8 +425,8 @@ SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 
 - 下载地址来自官方 API：Adoptium、Azul Metadata、Corretto、go.dev/dl、Flutter releases、nodejs.org/dist `index.json`。不抓取搜索页。
 - 归档按块计算 SHA-256。Go、Flutter、Node.js（官方 `SHASUMS256.txt`）校验失败即中止。Java 校验源不可达时警告并继续。
-- 解压前检查单根目录和可执行文件，并且只解压到新的空目录。
-- 安装过程持有 `~/.sdkvm/.lock`，避免并发安装互相覆盖。
+- 解压后检查单根目录和可执行文件，并且只解压到新的空目录。
+- 安装与 `sdkvm upgrade` 持有 `~/.sdkvm/.lock`，避免并发写互相覆盖。
 
 ## 常见问题
 
@@ -458,6 +458,16 @@ fish_add_path $JAVA_HOME/bin
 ### 代理
 
 当前不读取 `HTTPS_PROXY`。可以使用系统级透明代理。
+
+### 从旧版 `~/.jvm` 迁过来
+
+本工具不再自动迁移。若仍有 `~/.jvm` 数据，可手工：
+
+```sh
+mv ~/.jvm ~/.sdkvm
+```
+
+然后删掉 shell 里旧的 `# >>> jvm init >>>` 块，再执行一次 `sdkvm use <version>` 写入新的 rc / 环境变量。Windows 同理：确认数据在 `%USERPROFILE%\.sdkvm` 后重跑 `use`。
 
 ### CI 或多用户隔离
 

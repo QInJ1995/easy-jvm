@@ -1,7 +1,7 @@
 {
   "name": "sdkvm",
   "version": "1.0.0",
-  "description": "SDK version manager (nvm for SDKs) — Java (Temurin / Zulu / Corretto), Go, Flutter & Node.js",
+  "description": "SDK version manager — Java (Temurin / Zulu / Corretto), Go, Flutter & Node.js",
   "type": "module",
   "bin": {
     "sdkvm": "dist/index.js"
@@ -38,7 +38,6 @@
     "node",
     "nodejs",
     "version-manager",
-    "nvm",
     "temurin",
     "zulu",
     "corretto"

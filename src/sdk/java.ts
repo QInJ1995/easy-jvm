@@ -4,6 +4,7 @@ import type { SdkVersion } from '../core/version.js';
 import {
   compareVersions,
   formatVersion,
+  LTS_MAJORS,
   parseDirName,
   parseUserSpec,
 } from '../core/version.js';
@@ -17,6 +18,7 @@ export const javaSdk: SdkTypeSpec = {
   currentLinkName: 'current-java',
   envVar: 'JAVA_HOME',
   supportsLts: true,
+  isLtsMajor: (major) => LTS_MAJORS.has(major),
   vendors: JAVA_VENDORS,
   parseUserSpec,
   parseDirName,

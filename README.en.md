@@ -102,7 +102,7 @@ The script:
 
 1. Downloads Node.js 22.20.0 into `~/.sdkvm/runtime`. That copy only launches the CLI. `sdkvm node use` does not change it.
 2. Downloads `sdkvm.tgz` from the GitHub Release, checks SHA-256, and extracts it to `~/.sdkvm/cli`.
-3. Writes `~/.sdkvm/bin/sdkvm` (on Windows, `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`). If that directory is not on `PATH`, the script prints the line to add.
+3. Writes `~/.sdkvm/bin/sdkvm` (on Windows, `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`) and adds that directory to the shell profile / user PATH (zsh → `~/.zshrc`, bash → `~/.bash_profile` or `~/.bashrc`). Open a new terminal or `source` the rc file, then run `sdkvm`.
 
 The data root matches the CLI: `SDKVM_HOME` overrides it, otherwise `~/.sdkvm`. Both the runtime and the CLI live under that root. Override download prefixes when needed:
 
@@ -556,7 +556,7 @@ A script install removes the shim and the CLI runtime. Installed SDKs stay:
 rm -rf ~/.sdkvm/bin ~/.sdkvm/cli ~/.sdkvm/runtime
 ```
 
-On Windows, delete `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`, plus `%USERPROFILE%\.sdkvm\cli` and `%USERPROFILE%\.sdkvm\runtime`.
+On Windows, delete `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`, plus `%USERPROFILE%\.sdkvm\cli` and `%USERPROFILE%\.sdkvm\runtime`, and remove `%USERPROFILE%\.sdkvm\bin` from the user PATH.
 
 After you no longer need the installed JDKs, Go, Flutter, and Node.js, remove the data directory:
 
@@ -564,7 +564,9 @@ After you no longer need the installed JDKs, Go, Flutter, and Node.js, remove th
 rm -rf ~/.sdkvm
 ```
 
-Also delete the shell blocks between `>>> sdkvm java init >>>`, `>>> sdkvm go init >>>`, `>>> sdkvm flutter init >>>`, `>>> sdkvm node init >>>` and their matching `<<< … <<<` markers.
+Also delete these shell blocks:
+- `# >>> sdkvm path >>>` … `# <<< sdkvm path <<<`
+- each SDK’s `>>> sdkvm java|go|flutter|node init >>>` … `<<< … <<<`
 
 On Windows, remove `JAVA_HOME`, `GO_HOME`, `FLUTTER_HOME`, and `NODE_HOME` from the user environment, and remove `%JAVA_HOME%\bin`, `%GO_HOME%\bin`, `%FLUTTER_HOME%\bin`, and `%NODE_HOME%` from the user PATH.
 

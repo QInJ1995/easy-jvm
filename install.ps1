@@ -107,10 +107,41 @@ if "%ROOT%"=="" set "ROOT=$Root"
 
   Write-Host "sdkvm: installed to $BinDir\sdkvm.cmd"
   Write-Host "sdkvm: runtime $current (isolated from sdkvm node use)"
-  $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-  if ($userPath -notlike "*$BinDir*") {
-    Write-Host "sdkvm: add to your user PATH: $BinDir"
+
+  # 写入用户 PATH（幂等）；优先用 %USERPROFILE%\.sdkvm\bin 形式
+  $home = [Environment]::GetFolderPath('UserProfile')
+  if ($BinDir.StartsWith($home, [StringComparison]::OrdinalIgnoreCase)) {
+    $pathEntry = '%USERPROFILE%' + $BinDir.Substring($home.Length)
+  } else {
+    $pathEntry = $BinDir
   }
+  $k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+  $fmt = [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
+  $raw = [string]$k.GetValue('Path', '', $fmt)
+  $parts = @($raw -split ';' | Where-Object { $_ -ne '' })
+  $norm = {
+    param($p)
+    $p.TrimEnd('\').ToLowerInvariant()
+  }
+  $already = $false
+  foreach ($p in $parts) {
+    if ((& $norm $p) -eq (& $norm $pathEntry) -or ((& $norm $p) -eq (& $norm $BinDir))) {
+      $already = $true
+      break
+    }
+  }
+  if (-not $already) {
+    $parts = @($pathEntry) + $parts
+    $kind = [Microsoft.Win32.RegistryValueKind]::ExpandString
+    try {
+      if ($k.GetValueKind('Path') -eq [Microsoft.Win32.RegistryValueKind]::String) {
+        $kind = [Microsoft.Win32.RegistryValueKind]::String
+      }
+    } catch { }
+    $k.SetValue('Path', ($parts -join ';'), $kind)
+    Write-Host "sdkvm: added $pathEntry to user PATH (reopen the terminal)"
+  }
+  $k.Close()
 } finally {
   Remove-Item -Recurse -Force $tmpdir -ErrorAction SilentlyContinue
 }

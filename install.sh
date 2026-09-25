@@ -134,9 +134,56 @@ exec "\$ROOT/runtime/current/bin/node" "\$ROOT/cli/dist/index.js" "\$@"
 EOF
 chmod +x "$BIN_DIR/sdkvm"
 
+# PATH：写入 shell rc（标记块，可幂等覆盖）；无法识别 shell 时仅提示
+ensure_path_rc() {
+  shell_base=$(basename "${SHELL:-}")
+  rc=
+  case "$shell_base" in
+    zsh|-zsh) rc="$HOME/.zshrc" ;;
+    bash|-bash)
+      case "$(uname -s)" in
+        Darwin) rc="$HOME/.bash_profile" ;;
+        *) rc="$HOME/.bashrc" ;;
+      esac
+      ;;
+    *) return 1 ;;
+  esac
+
+  # rc 里尽量用 $HOME 相对路径，便于搬家
+  case "$BIN_DIR" in
+    "$HOME"/*) path_ref="\$HOME/${BIN_DIR#"$HOME"/}" ;;
+    *) path_ref=$BIN_DIR ;;
+  esac
+
+  begin='# >>> sdkvm path >>>'
+  end='# <<< sdkvm path <<<'
+  block=$(printf '%s\n%s\n%s' \
+    "$begin" \
+    "case \":\$PATH:\" in *\":${path_ref}:\"*) ;; *) export PATH=\"${path_ref}:\$PATH\";; esac" \
+    "$end")
+
+  tmp=$(mktemp)
+  if [ -f "$rc" ]; then
+    awk -v b="$begin" -v e="$end" '
+      $0 == b { skip=1; next }
+      skip && $0 == e { skip=0; next }
+      !skip { print }
+    ' "$rc" > "$tmp"
+  else
+    : > "$tmp"
+  fi
+  if [ -s "$tmp" ]; then
+    printf '%s\n\n%s\n' "$(cat "$tmp")" "$block" > "$rc"
+  else
+    printf '%s\n' "$block" > "$rc"
+  fi
+  rm -f "$tmp"
+  echo "sdkvm: updated PATH in $rc (open a new terminal or: source $rc)"
+  return 0
+}
+
 echo "sdkvm: installed to $BIN_DIR/sdkvm"
 echo "sdkvm: runtime $ROOT/runtime/current (isolated from sdkvm node use)"
-case ":$PATH:" in
-  *":$BIN_DIR:"*) ;;
-  *) echo "sdkvm: add to your shell profile: export PATH=\"$BIN_DIR:\$PATH\"" ;;
-esac
+if ! ensure_path_rc; then
+  echo "sdkvm: add to your shell profile: export PATH=\"$BIN_DIR:\$PATH\""
+fi

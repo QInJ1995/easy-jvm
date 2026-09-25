@@ -2,6 +2,7 @@ import type { ReleaseLine, ResolvedArtifact, Vendor, VendorPlatform } from './ty
 import { httpJson } from '../net/http.js';
 import { SdkvmError } from '../util/errors.js';
 import { LTS_MAJORS, formatVersion, parseVersion } from '../core/version.js';
+import { detectPlatform } from '../core/platform.js';
 import { temurinVendor } from './temurin.js';
 import { cmdPath } from '../cli/cmdname.js';
 
@@ -23,6 +24,18 @@ interface ZuluPackage {
   sha256_hash?: string;
 }
 
+/**
+ * major（如 "21"）：匹配该大版本。
+ * 完整/部分版本：精确相等，或带段边界的前缀（"21.0.1" 可匹配 "21.0.1.2"，不匹配 "21.0.10"）。
+ */
+export function zuluVersionMatches(javaVersion: number[], wanted: string): boolean {
+  if (!wanted) return true;
+  const actual = javaVersion.join('.');
+  if (actual === wanted) return true;
+  if (/^\d+$/.test(wanted)) return javaVersion[0] === Number(wanted);
+  return actual.startsWith(`${wanted}.`);
+}
+
 /** 客户端过滤：只要普通 ca-jdk 构建（API 的过滤参数不可靠：会漏进 crac/fx-jre） */
 function pickPlainJdk(
   packages: ZuluPackage[],
@@ -34,7 +47,7 @@ function pickPlainJdk(
   const candidates = packages.filter((p) => {
     if (!/^zulu[\d.]+-ca-jdk[\d.]*-/i.test(p.name)) return false;
     if (!p.name.endsWith(ext)) return false;
-    if (wanted && !p.java_version.join('.').startsWith(wanted)) return false;
+    if (wanted && !zuluVersionMatches(p.java_version, wanted)) return false;
     return true;
   });
   candidates.sort((a, b) => {
@@ -67,14 +80,12 @@ export const zuluVendor: Vendor = {
   async listMajors(): Promise<ReleaseLine[]> {
     // 用 Adoptium 的 OpenJDK 发布节奏作为 major 全集，逐个探测 Zulu 是否有构建
     const universe = await temurinVendor.listMajors();
+    const platform = detectPlatform();
     const results = await Promise.all(
       universe.map(async ({ key }): Promise<ReleaseLine | null> => {
         try {
-          const packages = await queryPackages(key, {
-            os: 'mac',
-            arch: 'aarch64',
-          });
-          const pick = pickPlainJdk(packages, { os: 'mac', arch: 'aarch64' });
+          const packages = await queryPackages(key, platform);
+          const pick = pickPlainJdk(packages, platform);
           if (!pick) return null;
           return { key, lts: LTS_MAJORS.has(Number(key)), latestFullVersion: pick.java_version.join('.') };
         } catch {

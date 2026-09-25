@@ -103,10 +103,9 @@ export async function replaceCliPackage(archiveFile: string, home = sdkvmHome())
   fs.rmSync(staging, { recursive: true, force: true });
 }
 
-/** Windows：进程退出后再替换 cli（避免自替换 EPERM）。cli.next/package 须已就绪。 */
-export function scheduleWindowsCliReplace(home: string): void {
-  const script = path.join(home, 'upgrade-apply.cmd');
-  const body = [
+/** Windows 升级脚本正文（导出便于单测） */
+export function windowsUpgradeScript(home: string): string {
+  return [
     '@echo off',
     'setlocal',
     `set "HOME=${home}"`,
@@ -114,12 +113,21 @@ export function scheduleWindowsCliReplace(home: string): void {
     'if exist "%HOME%\\cli.bak" rmdir /s /q "%HOME%\\cli.bak"',
     'if exist "%HOME%\\cli" move /y "%HOME%\\cli" "%HOME%\\cli.bak" >nul',
     'move /y "%HOME%\\cli.next\\package" "%HOME%\\cli" >nul',
-    'if exist "%HOME%\\cli.bak" rmdir /s /q "%HOME%\\cli.bak"',
-    'if exist "%HOME%\\cli.next" rmdir /s /q "%HOME%\\cli.next"',
+    'if exist "%HOME%\\cli\\package.json" (',
+    '  if exist "%HOME%\\cli.bak" rmdir /s /q "%HOME%\\cli.bak"',
+    '  if exist "%HOME%\\cli.next" rmdir /s /q "%HOME%\\cli.next"',
+    ') else (',
+    '  if exist "%HOME%\\cli.bak" if not exist "%HOME%\\cli" move /y "%HOME%\\cli.bak" "%HOME%\\cli" >nul',
+    ')',
     'del "%~f0"',
     '',
   ].join('\r\n');
-  fs.writeFileSync(script, body, 'utf8');
+}
+
+/** Windows：进程退出后再替换 cli（避免自替换 EPERM）。cli.next/package 须已就绪。 */
+export function scheduleWindowsCliReplace(home: string): void {
+  const script = path.join(home, 'upgrade-apply.cmd');
+  fs.writeFileSync(script, windowsUpgradeScript(home), 'utf8');
   const child = spawn('cmd.exe', ['/c', script], {
     detached: true,
     stdio: 'ignore',

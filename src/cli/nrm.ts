@@ -1,4 +1,4 @@
-import { loadConfig, saveConfig } from '../core/config.js';
+import { loadConfig, updateConfig } from '../core/config.js';
 import { run } from '../util/spawn.js';
 import { SdkvmError } from '../util/errors.js';
 import { log } from '../ui/log.js';
@@ -163,7 +163,7 @@ export function nrmAdd(name: string, url: string): void {
   }
   let parsed: URL;
   try {
-    parsed = new URL(url);
+    parsed = new URL(url.trim());
   } catch {
     throw new SdkvmError(`Invalid URL: ${url}`);
   }
@@ -172,10 +172,18 @@ export function nrmAdd(name: string, url: string): void {
       hint: 'Expected http:// or https://',
     });
   }
-  const normalized = url.replace(/\/+$/, '') + '/';
-  const config = loadConfig();
-  config.npmRegistries[key] = normalized;
-  saveConfig(config);
+  // 只规范化 pathname 尾斜杠，保留 query/hash
+  parsed.pathname = parsed.pathname.replace(/\/+$/, '') + '/';
+  const normalized = parsed.href;
+  updateConfig((config) => {
+    const existingKey = Object.keys(config.npmRegistries).find(
+      (k) => k.toLowerCase() === key.toLowerCase(),
+    );
+    if (existingKey && existingKey !== key) {
+      delete config.npmRegistries[existingKey];
+    }
+    config.npmRegistries[key] = normalized;
+  });
   log.ok(`added registry ${key} → ${normalized}`);
 }
 
@@ -184,16 +192,18 @@ export function nrmDel(name: string): void {
   if (isBuiltinRegistryName(key)) {
     throw new SdkvmError(`Cannot delete built-in registry "${key}"`);
   }
-  const config = loadConfig();
-  const existing = Object.keys(config.npmRegistries).find((k) => k.toLowerCase() === key.toLowerCase());
-  if (!existing) {
-    throw new SdkvmError(`Unknown custom registry "${name}"`, {
-      hint: 'Only registries added with sdkvm nrm add can be deleted',
-    });
-  }
-  delete config.npmRegistries[existing];
-  saveConfig(config);
-  log.ok(`deleted registry ${existing}`);
+  let deleted: string | undefined;
+  updateConfig((config) => {
+    const existing = Object.keys(config.npmRegistries).find((k) => k.toLowerCase() === key.toLowerCase());
+    if (!existing) {
+      throw new SdkvmError(`Unknown custom registry "${name}"`, {
+        hint: 'Only registries added with sdkvm nrm add can be deleted',
+      });
+    }
+    delete config.npmRegistries[existing];
+    deleted = existing;
+  });
+  log.ok(`deleted registry ${deleted}`);
 }
 
 export async function nrmTest(

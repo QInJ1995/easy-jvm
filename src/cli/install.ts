@@ -8,7 +8,7 @@ import { envGet } from '../core/env.js';
 import { getSdkType } from '../sdk/index.js';
 import type { SdkTypeId } from '../sdk/types.js';
 import { getVendor, resolveVendorId } from '../vendor/index.js';
-import { applyMirror } from '../vendor/mirror.js';
+import { applyMirrorDetail, MIRROR_REWRITE_VENDORS } from '../vendor/mirror.js';
 import { downloadFile, cacheFileName } from '../net/download.js';
 import { verifyChecksum } from '../net/checksum.js';
 import { extractArchive, tmpExtractDir } from '../fs/extract.js';
@@ -45,25 +45,37 @@ export async function installCommand(
   log.info(`resolving ${vendor.label} ${specInput} for ${platform.os}/${platform.arch} ...`);
   const resolved = await vendor.resolve(spec, platform);
   const mirrorRoot = envGet('SDKVM_MIRROR') ?? config.mirror[vendorId] ?? null;
-  const artifact = applyMirror(resolved, platform, mirrorRoot);
+  const { artifact, applied } = applyMirrorDetail(resolved, platform, mirrorRoot);
+  if (mirrorRoot?.trim() && !applied) {
+    if (!MIRROR_REWRITE_VENDORS.has(vendorId)) {
+      log.warn(
+        `mirror is set but ${vendorId} downloads are not mirrored; using the official URL`,
+      );
+    } else {
+      log.warn(
+        `mirror root did not rewrite the download URL for ${vendorId}; using the official source`,
+      );
+    }
+  }
 
   const finalDir = path.join(paths.sdks(type), artifact.dirName);
-  // java 提示用 major，go 提示用 minor 线（1.24）
+  // java/node：major；go/flutter：minor 线（1.24 / 3.47）。node 不接受 major.minor。
   const hintVersion =
-    type === 'java'
+    type === 'java' || type === 'node'
       ? String(artifact.version.major)
       : `${artifact.version.major}.${artifact.version.minor}`;
-  if (fs.existsSync(finalDir)) {
-    if (!opts.force) {
-      log.warn(`${artifact.displayName} is already installed`);
-      log.info(`run: ${cmdPath(type)} use ${hintVersion}`);
-      return;
-    }
-    log.warn(`--force: removing existing ${artifact.dirName}`);
-  }
 
   await withLock(async () => {
     ensureLayout();
+    if (fs.existsSync(finalDir)) {
+      if (!opts.force) {
+        log.warn(`${artifact.displayName} is already installed`);
+        log.info(`run: ${cmdPath(type)} use ${hintVersion}`);
+        return;
+      }
+      log.warn(`--force: removing existing ${artifact.dirName}`);
+    }
+
     // 清理残留 .part
     for (const f of fs.readdirSync(paths.cache())) {
       if (f.endsWith('.part')) fs.rmSync(path.join(paths.cache(), f), { force: true });
@@ -75,7 +87,7 @@ export async function installCommand(
     const dl = await downloadFile(artifact.downloadUrl, dest, (b, t) => progress.update(b, t));
     progress.done(dl.bytes, null);
 
-    await verifyChecksum(artifact, dl.sha256);
+    await verifyChecksum(artifact, dl.sha256, { strict: applied });
 
     const tmp = tmpExtractDir(paths.tmp());
     const bak = `${finalDir}.bak`;
@@ -109,8 +121,8 @@ export async function installCommand(
       fs.rmSync(paths.tmp(), { recursive: true, force: true });
       fs.mkdirSync(paths.tmp(), { recursive: true });
     }
-  });
 
-  log.ok(`installed ${artifact.displayName} → ${finalDir}`);
-  log.info(`switch to it: ${cmdPath(type)} use ${hintVersion}`);
+    log.ok(`installed ${artifact.displayName} → ${finalDir}`);
+    log.info(`switch to it: ${cmdPath(type)} use ${hintVersion}`);
+  });
 }

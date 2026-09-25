@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { detectPlatform, type Platform } from '../core/platform.js';
+import { withLock } from '../core/lock.js';
 import { findInstalled } from '../core/registry.js';
 import { setCurrent } from '../fs/link.js';
 import { getSdkType } from '../sdk/index.js';
@@ -38,7 +39,9 @@ export async function useCommand(
   const installed = findInstalled(type, specInput, opts.vendor);
   const label = `${installed.version.vendor}-${spec.formatVersion(installed.version)}`;
 
-  setCurrent(type, installed.home, platform);
+  await withLock(async () => {
+    setCurrent(type, installed.home, platform);
+  });
   log.ok(`current → ${label}`);
 
   if (platform.os === 'windows') {

@@ -1,4 +1,4 @@
-import { loadConfig, saveConfig } from '../core/config.js';
+import { loadConfig, updateConfig } from '../core/config.js';
 import { log } from '../ui/log.js';
 import { SdkvmError } from '../util/errors.js';
 import { allVendorIds } from '../vendor/index.js';
@@ -11,6 +11,7 @@ import {
   listMirrorSitesForType,
   matchMirrorSiteName,
   mirrorableVendors,
+  parseMirrorRootUrl,
   siteVendorsForType,
   type MirrorVendorId,
 } from './mirror-presets.js';
@@ -29,12 +30,12 @@ export function mirrorCommand(
   arg1: string | undefined,
   arg2: string | undefined,
 ): void {
-  const config = loadConfig();
   const mirrorable = mirrorableIds(type);
   const first = firstMirrorable(type);
   const prefix = cmdPath(type);
 
   if (action === 'ls' || action === 'list') {
+    const config = loadConfig();
     const matched = matchMirrorSiteName(type, config.mirror);
     for (const site of listMirrorSitesForType(type)) {
       let detail: string;
@@ -73,26 +74,29 @@ export function mirrorCommand(
     }
 
     if (site.name === 'official') {
-      for (const id of mirrorable) {
-        delete config.mirror[id];
-      }
-      saveConfig(config);
+      updateConfig((config) => {
+        for (const id of mirrorable) {
+          delete config.mirror[id];
+        }
+      });
       log.ok(`mirror for ${type} → official`);
       return;
     }
 
     const scoped = siteVendorsForType(site, type);
     const changed: string[] = [];
-    for (const [id, url] of Object.entries(scoped) as [MirrorVendorId, string][]) {
-      config.mirror[id] = url;
-      changed.push(`${id} → ${url}`);
-    }
-    saveConfig(config);
+    updateConfig((config) => {
+      for (const [id, url] of Object.entries(scoped) as [MirrorVendorId, string][]) {
+        config.mirror[id] = url;
+        changed.push(`${id} → ${url}`);
+      }
+    });
     log.ok(`mirror site ${site.name}: ${changed.join('; ')}`);
     return;
   }
 
   if (action === 'current') {
+    const config = loadConfig();
     const matched = matchMirrorSiteName(type, config.mirror);
     if (matched === 'official') {
       log.raw(`official → (no mirror)`);
@@ -128,6 +132,12 @@ export function mirrorCommand(
       url = arg1;
     }
     if (!url) throw new SdkvmError(`usage: ${prefix} mirror set [vendor] <url>`);
+    const siteHit = findMirrorSite(url);
+    if (!url.includes('://') && siteHit) {
+      throw new SdkvmError(`"${url}" is a mirror site name, not a URL`, {
+        hint: `Use: ${prefix} mirror use ${siteHit.name}`,
+      });
+    }
     if (!mirrorable.includes(vendor as MirrorVendorId)) {
       throw new SdkvmError(`mirroring is only supported for ${mirrorable.join(', ') || 'none'} (got "${vendor}")`, {
         hint: first
@@ -135,24 +145,35 @@ export function mirrorCommand(
           : undefined,
       });
     }
+    let normalized: string;
     try {
-      new URL(url);
-    } catch {
-      throw new SdkvmError(`invalid URL: ${url}`);
+      normalized = parseMirrorRootUrl(url);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new SdkvmError(msg, {
+        hint: msg.includes('protocol') ? 'Expected http:// or https://' : undefined,
+      });
     }
-    config.mirror[vendor] = url.replace(/\/+$/, '');
-    saveConfig(config);
-    log.ok(`mirror for ${vendor} → ${config.mirror[vendor]}`);
+    updateConfig((config) => {
+      config.mirror[vendor] = normalized;
+    });
+    log.ok(`mirror for ${vendor} → ${normalized}`);
     return;
   }
 
   if (action === 'unset') {
     const vendor = arg1 ?? first;
+    if (vendor && findMirrorSite(vendor)?.name === 'official') {
+      throw new SdkvmError(`To clear mirrors, use: ${prefix} mirror use official`, {
+        hint: `Or: ${prefix} mirror unset ${first || '<vendor>'}`,
+      });
+    }
     if (!mirrorable.includes(vendor as MirrorVendorId)) {
       throw new SdkvmError(`mirroring is only supported for ${mirrorable.join(', ') || 'none'}`);
     }
-    delete config.mirror[vendor];
-    saveConfig(config);
+    updateConfig((config) => {
+      delete config.mirror[vendor];
+    });
     log.ok(`mirror for ${vendor} cleared (official source)`);
     return;
   }
@@ -164,6 +185,7 @@ export function mirrorCommand(
     });
   }
 
+  const config = loadConfig();
   const matched = matchMirrorSiteName(type, config.mirror);
   log.raw(`mirrors${matched ? ` (${matched})` : ''}:`);
   for (const id of allVendorIds(type)) {

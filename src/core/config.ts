@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { JAVA_VENDOR_IDS } from './version.js';
+import { acquireLock, releaseLock } from './lock.js';
 import { ensureLayout, paths } from './paths.js';
 import { log } from '../ui/log.js';
 
@@ -64,4 +65,20 @@ export function saveConfig(config: SdkvmConfig): void {
   const tmp = path.join(path.dirname(file), `.config.json.tmp-${process.pid}`);
   fs.writeFileSync(tmp, `${JSON.stringify(config, null, 2)}\n`);
   fs.renameSync(tmp, file);
+}
+
+/**
+ * 在全局锁内读-改-写 config，避免 mirror/nrm 并发丢更新。
+ * 调用方勿在已持有 withLock 的回调里再调（非可重入）。
+ */
+export function updateConfig(mutator: (config: SdkvmConfig) => void): SdkvmConfig {
+  acquireLock();
+  try {
+    const config = loadConfig();
+    mutator(config);
+    saveConfig(config);
+    return config;
+  } finally {
+    releaseLock();
+  }
 }

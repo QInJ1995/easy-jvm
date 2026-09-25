@@ -1,5 +1,8 @@
 import type { ResolvedArtifact, VendorPlatform } from './types.js';
 
+/** 支持 applyMirror 改写的 vendor（与 mirror-presets 对齐） */
+export const MIRROR_REWRITE_VENDORS = new Set(['temurin', 'golang', 'flutter', 'nodejs']);
+
 /**
  * mirror 仅替换 tarball 下载 URL（metadata 始终走官方 API）。按 vendor 分派策略：
  * - temurin：官方 GitHub URL → 镜像结构 {root}/{major}/jdk/{arch}/{os}/{file}（已验证镜像：https://mirrors.nju.edu.cn/adoptium）
@@ -12,33 +15,40 @@ export function applyMirror(
   platform: VendorPlatform,
   mirrorRoot: string | null | undefined,
 ): ResolvedArtifact {
-  if (!mirrorRoot) return artifact;
+  return applyMirrorDetail(artifact, platform, mirrorRoot).artifact;
+}
+
+export function applyMirrorDetail(
+  artifact: ResolvedArtifact,
+  platform: VendorPlatform,
+  mirrorRoot: string | null | undefined,
+): { artifact: ResolvedArtifact; applied: boolean } {
+  if (!mirrorRoot?.trim()) return { artifact, applied: false };
+  const root = mirrorRoot.trim().replace(/\/+$/, '');
   if (artifact.vendorId === 'golang') {
-    const root = mirrorRoot.replace(/\/+$/, '');
     const file = artifact.downloadUrl.split('/').pop();
-    if (!file) return artifact;
-    return { ...artifact, downloadUrl: `${root}/${file}` };
+    if (!file) return { artifact, applied: false };
+    return { artifact: { ...artifact, downloadUrl: `${root}/${file}` }, applied: true };
   }
   if (artifact.vendorId === 'flutter') {
-    const root = mirrorRoot.replace(/\/+$/, '');
     const url = artifact.downloadUrl.replace(
       /^https:\/\/storage\.googleapis\.com\/flutter_infra_release/,
       root,
     );
-    return { ...artifact, downloadUrl: url };
+    if (url === artifact.downloadUrl) return { artifact, applied: false };
+    return { artifact: { ...artifact, downloadUrl: url }, applied: true };
   }
   if (artifact.vendorId === 'nodejs') {
-    const root = mirrorRoot.replace(/\/+$/, '');
     const url = artifact.downloadUrl.replace(/^https:\/\/nodejs\.org\/dist/, root);
-    return { ...artifact, downloadUrl: url };
+    if (url === artifact.downloadUrl) return { artifact, applied: false };
+    return { artifact: { ...artifact, downloadUrl: url }, applied: true };
   }
-  if (artifact.vendorId !== 'temurin') return artifact;
+  if (artifact.vendorId !== 'temurin') return { artifact, applied: false };
   const m =
     /^https:\/\/github\.com\/adoptium\/temurin(\d+)-binaries\/releases\/download\/[^/]+\/(.+)$/.exec(
       artifact.downloadUrl,
     );
-  if (!m || !m[1] || !m[2]) return artifact;
-  const root = mirrorRoot.replace(/\/+$/, '');
+  if (!m || !m[1] || !m[2]) return { artifact, applied: false };
   const url = `${root}/${m[1]}/jdk/${platform.arch}/${platform.os}/${m[2]}`;
-  return { ...artifact, downloadUrl: url };
+  return { artifact: { ...artifact, downloadUrl: url }, applied: true };
 }

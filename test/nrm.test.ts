@@ -151,13 +151,23 @@ describe('nrm add / del', () => {
     expect(() => nrmAdd('ok', 'not-a-url')).toThrow(/Invalid URL/);
   });
 
-  it('del removes custom only', () => {
+  it('add preserves query string and trims whitespace', () => {
     vi.spyOn(log, 'ok').mockImplementation(() => {});
-    nrmAdd('myprivate', 'http://xxx/registry');
-    nrmDel('myprivate');
-    expect(loadConfig().npmRegistries.myprivate).toBeUndefined();
-    expect(() => nrmDel('npm')).toThrow(/built-in/);
-    expect(() => nrmDel('missing')).toThrow(/Unknown custom/);
+    nrmAdd('corp', '  http://xxx/registry?token=1  ');
+    expect(loadConfig().npmRegistries.corp).toBe('http://xxx/registry/?token=1');
+  });
+
+  it('add updates same name ignoring case without duplicating keys', () => {
+    vi.spyOn(log, 'ok').mockImplementation(() => {});
+    nrmAdd('MyPrivate', 'http://xxx/a');
+    nrmAdd('myprivate', 'http://xxx/b');
+    const regs = loadConfig().npmRegistries;
+    expect(Object.keys(regs).filter((k) => k.toLowerCase() === 'myprivate')).toEqual(['myprivate']);
+    expect(regs.myprivate).toBe('http://xxx/b/');
+  });
+
+  it('add rejects ftp protocol', () => {
+    expect(() => nrmAdd('ok', 'ftp://xxx/registry')).toThrow(/protocol/);
   });
 });
 

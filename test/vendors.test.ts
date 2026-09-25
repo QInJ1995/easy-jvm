@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { temurinVendor } from '../src/vendor/temurin.js';
-import { zuluVendor as zulu } from '../src/vendor/zulu.js';
+import { zuluVendor as zulu, zuluVersionMatches } from '../src/vendor/zulu.js';
 import { correttoVendor } from '../src/vendor/corretto.js';
 
 const MAC = { os: 'mac' as const, arch: 'aarch64' as const };
@@ -95,6 +95,37 @@ describe('zulu', () => {
     { name: 'zulu21.52.203-ca-jdk21.0.12.1-macosx_aarch64.dmg', download_url: 'https://cdn.azul.com/jdk.dmg', java_version: [21, 0, 12, 1], distro_version: [21, 52, 203, 0] },
     { name: 'zulu21.52.203-ca-jdk21.0.12.1-macosx_aarch64.tar.gz', download_url: 'https://cdn.azul.com/zulu/bin/zulu21.52.203-ca-jdk21.0.12.1-macosx_aarch64.tar.gz', java_version: [21, 0, 12, 1], distro_version: [21, 52, 203, 0], sha256_hash: 'ab'.repeat(32) },
   ];
+
+  it('version match uses segment boundaries (21.0.1 vs 21.0.10)', () => {
+    expect(zuluVersionMatches([21, 0, 1], '21.0.1')).toBe(true);
+    expect(zuluVersionMatches([21, 0, 1, 2], '21.0.1')).toBe(true);
+    expect(zuluVersionMatches([21, 0, 10], '21.0.1')).toBe(false);
+    expect(zuluVersionMatches([21, 0, 12, 1], '21')).toBe(true);
+  });
+
+  it('full version does not pick a longer patch via string prefix', async () => {
+    const mixed = [
+      ...packages,
+      {
+        name: 'zulu21.40-ca-jdk21.0.1-macosx_aarch64.tar.gz',
+        download_url: 'https://cdn.azul.com/zulu/bin/zulu21.0.1.tar.gz',
+        java_version: [21, 0, 1],
+        distro_version: [21, 40, 0, 0],
+        sha256_hash: 'cd'.repeat(32),
+      },
+      {
+        name: 'zulu21.50-ca-jdk21.0.10-macosx_aarch64.tar.gz',
+        download_url: 'https://cdn.azul.com/zulu/bin/zulu21.0.10.tar.gz',
+        java_version: [21, 0, 10],
+        distro_version: [21, 50, 0, 0],
+        sha256_hash: 'ef'.repeat(32),
+      },
+    ];
+    vi.stubGlobal('fetch', vi.fn(async () => resJson(mixed)));
+    const a = await zulu.resolve({ kind: 'full', version: '21.0.1' }, MAC);
+    expect(a.downloadUrl).toBe('https://cdn.azul.com/zulu/bin/zulu21.0.1.tar.gz');
+    expect(a.dirName).toBe('zulu-21.0.1');
+  });
 
   it('client-side filter skips crac/fx/jre/dmg and picks platform ext', async () => {
     const fetchMock = vi.fn(async () => resJson(packages));

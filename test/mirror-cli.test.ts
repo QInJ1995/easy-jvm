@@ -30,10 +30,26 @@ afterEach(() => {
 });
 
 describe('mirror presets', () => {
-  it('normalizes trailing slashes and case', () => {
+  it('normalizes trailing slashes and host case, keeps path case', () => {
     expect(normalizeMirrorUrl('https://Mirrors.NJU.edu.cn/adoptium/')).toBe(
       'https://mirrors.nju.edu.cn/adoptium',
     );
+    expect(normalizeMirrorUrl('https://Mirrors.tuna.tsinghua.edu.cn/Adoptium/')).toBe(
+      'https://mirrors.tuna.tsinghua.edu.cn/Adoptium',
+    );
+  });
+
+  it('does not treat adoptium and Adoptium as the same path', () => {
+    expect(
+      matchMirrorSiteName('java', {
+        temurin: 'https://mirrors.tuna.tsinghua.edu.cn/adoptium',
+      }),
+    ).toBeNull();
+    expect(
+      matchMirrorSiteName('java', {
+        temurin: 'https://mirrors.tuna.tsinghua.edu.cn/Adoptium',
+      }),
+    ).toBe('tuna');
   });
 
   it('resolves aliases', () => {
@@ -165,9 +181,15 @@ describe('mirrorCommand use / ls / current', () => {
     expect(lines[0]).toMatch(/^aliyun → /);
   });
 
-  it('set URL still works and is type-scoped vendor check', () => {
-    mirrorCommand('java', 'set', 'temurin', 'https://mirrors.nju.edu.cn/adoptium/');
-    expect(loadConfig().mirror.temurin).toBe('https://mirrors.nju.edu.cn/adoptium');
-    expect(() => mirrorCommand('java', 'set', 'golang', 'https://example.com')).toThrow(SdkvmError);
+  it('set trims URL and rejects non-http(s)', () => {
+    vi.spyOn(log, 'ok').mockImplementation(() => {});
+    mirrorCommand('go', 'set', 'golang', '  https://mirrors.aliyun.com/golang/  ');
+    expect(loadConfig().mirror.golang).toBe('https://mirrors.aliyun.com/golang');
+    expect(() => mirrorCommand('go', 'set', 'golang', 'ftp://example.com/go')).toThrow(/protocol/);
+  });
+
+  it('set site name without URL hints to use', () => {
+    expect(() => mirrorCommand('go', 'set', 'nju', undefined)).toThrow(/mirror site name/);
+    expect(() => mirrorCommand('go', 'unset', 'official', undefined)).toThrow(/mirror use official/);
   });
 });

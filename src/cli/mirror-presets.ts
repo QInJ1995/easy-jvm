@@ -67,8 +67,34 @@ export const MIRROR_SITE_PRESETS: readonly MirrorSite[] = [
   },
 ];
 
+/**
+ * 比较用规范化：去空白与尾斜杠；只把 scheme/host 小写，保留 path 大小写
+ *（TUNA 为 /Adoptium，NJU 为 /adoptium，不可整段 toLowerCase）。
+ */
 export function normalizeMirrorUrl(url: string): string {
-  return url.trim().replace(/\/+$/, '').toLowerCase();
+  const trimmed = url.trim().replace(/\/+$/, '');
+  try {
+    const u = new URL(trimmed);
+    const path = `${u.pathname}${u.search}${u.hash}`.replace(/\/+$/, '') || '';
+    return `${u.protocol.toLowerCase()}//${u.host.toLowerCase()}${path}`;
+  } catch {
+    return trimmed;
+  }
+}
+
+/** 校验并规范化用户输入的镜像根（写入 config） */
+export function parseMirrorRootUrl(url: string): string {
+  const trimmed = url.trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new Error(`invalid URL: ${url}`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error(`invalid URL protocol: ${parsed.protocol}`);
+  }
+  return trimmed.replace(/\/+$/, '');
 }
 
 export function mirrorableVendors(type: SdkTypeId): readonly MirrorVendorId[] {

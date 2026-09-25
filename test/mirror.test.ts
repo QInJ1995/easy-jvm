@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyMirror } from '../src/vendor/mirror.js';
+import { applyMirror, applyMirrorDetail } from '../src/vendor/mirror.js';
 import { parseVersion } from '../src/core/version.js';
 import { parseGoVersion, parseFlutterVersion, parseNodeVersion } from '../src/core/version.js';
 import type { ResolvedArtifact } from '../src/vendor/types.js';
@@ -36,6 +36,23 @@ describe('applyMirror', () => {
 
   it('no mirror → untouched', () => {
     expect(applyMirror(artifact(GH), mac, null).downloadUrl).toBe(GH);
+  });
+
+  it('reports applied=false for unsupported vendors and unmatched URLs', () => {
+    const zulu = artifact('https://cdn.azul.com/zulu/bin/zulu.tar.gz', 'zulu');
+    expect(applyMirrorDetail(zulu, mac, 'https://mirrors.nju.edu.cn/adoptium').applied).toBe(false);
+
+    const nonGh = artifact('https://example.com/jdk.tar.gz');
+    expect(applyMirrorDetail(nonGh, mac, 'https://mirrors.nju.edu.cn/adoptium').applied).toBe(false);
+
+    expect(applyMirrorDetail(artifact(GH), mac, 'https://mirrors.nju.edu.cn/adoptium').applied).toBe(
+      true,
+    );
+  });
+
+  it('trims whitespace in mirror root', () => {
+    const out = applyMirror(artifact(GH), mac, '  https://mirrors.nju.edu.cn/adoptium  ');
+    expect(out.downloadUrl).toContain('https://mirrors.nju.edu.cn/adoptium/21/');
   });
 
   it('rewrites golang URL by filename concat (golang.google.cn)', () => {

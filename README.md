@@ -485,7 +485,7 @@ SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 ## 安全性
 
 - 下载地址来自官方 API：Adoptium、Azul Metadata、Corretto、go.dev/dl、Flutter releases、nodejs.org/dist `index.json`。不抓取搜索页。
-- 归档按块计算 SHA-256。Go、Flutter、Node.js（官方 `SHASUMS256.txt`）校验失败即中止。Java 校验源不可达时警告并继续。
+- 归档按块计算 SHA-256。Go、Flutter、Node.js（官方 `SHASUMS256.txt`）校验失败即中止。Java 校验源不可达时：官方源警告并继续；**走镜像下载时硬失败**（避免无法核对的镜像包被放行）。
 - 解压后检查单根目录和可执行文件，并且只解压到新的空目录。
 - 安装与 `sdkvm upgrade` 持有 `~/.sdkvm/.lock`，避免并发写互相覆盖。
 

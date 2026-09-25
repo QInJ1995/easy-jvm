@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { checksumFor, isScriptInstall, replaceCliPackage } from '../src/cli/upgrade.js';
+import { checksumFor, isScriptInstall, replaceCliPackage, windowsUpgradeScript } from '../src/cli/upgrade.js';
 
 let home: string;
 
@@ -69,6 +69,17 @@ describe('checksumFor', () => {
     ].join('\n');
     expect(checksumFor(text, 'sdkvm.tgz')).toBe('b'.repeat(64));
     expect(checksumFor(text, 'missing.tgz')).toBeNull();
+  });
+});
+
+describe('windowsUpgradeScript', () => {
+  it('only deletes bak after successful package.json presence and restores on failure', () => {
+    const body = windowsUpgradeScript('C:\\sdkvm');
+    expect(body).toContain('if exist "%HOME%\\cli\\package.json"');
+    expect(body).toContain('move /y "%HOME%\\cli.bak" "%HOME%\\cli"');
+    // 成功分支里才删 bak；失败分支不无条件 rmdir bak
+    const successBlock = body.slice(body.indexOf('if exist "%HOME%\\cli\\package.json"'));
+    expect(successBlock).toMatch(/package\.json[\s\S]*rmdir \/s \/q "%HOME%\\cli\.bak"/);
   });
 });
 

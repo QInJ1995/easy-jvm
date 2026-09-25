@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { loadConfig, saveConfig } from '../src/core/config.js';
+import { loadConfig, saveConfig, updateConfig } from '../src/core/config.js';
 
 let home: string;
 
@@ -31,6 +31,13 @@ describe('config', () => {
     const loaded = loadConfig();
     expect(loaded.mirror.temurin).toBe('https://mirrors.nju.edu.cn/adoptium');
     expect(loaded.npmRegistries.myprivate).toBe('http://xxx/registry/');
+  });
+
+  it('updateConfig mutates under lock', () => {
+    updateConfig((c) => {
+      c.mirror.golang = 'https://mirrors.aliyun.com/golang';
+    });
+    expect(loadConfig().mirror.golang).toBe('https://mirrors.aliyun.com/golang');
   });
 
   it('corrupt file → backup + defaults', () => {

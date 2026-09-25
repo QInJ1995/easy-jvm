@@ -485,7 +485,7 @@ A mirror replaces the archive URL only. Version metadata and checksums always co
 ## Security
 
 - URLs are resolved from official APIs: Adoptium, Azul Metadata, Corretto, go.dev/dl, Flutter releases, and nodejs.org/dist `index.json`. Search pages are not scraped.
-- Archives are hashed with SHA-256 as they download. Go, Flutter, and Node.js (official `SHASUMS256.txt`) abort on mismatch. If a Java checksum source is unreachable, sdkvm warns and continues.
+- Archives are hashed with SHA-256 as they download. Go, Flutter, and Node.js (official `SHASUMS256.txt`) abort on mismatch. If a Java checksum source is unreachable: official downloads warn and continue; **mirrored downloads fail hard** so an unverifiable mirror package is never accepted.
 - After extract, the tree must have a single root and the expected executable. Extraction always targets a fresh empty directory.
 - Install and `sdkvm upgrade` hold `~/.sdkvm/.lock` so concurrent writers do not overwrite each other.
 

@@ -1,5 +1,21 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { rcBegin, rcEnd, rcBlock, stripRcBlock, upsertRcContent } from '../src/shell/rc.js';
+
+/** 避免宿主环境的 SDKVM_HOME（如 /Volumes/Develop/sdkvm）干扰默认路径断言 */
+let savedSdkvmHome: string | undefined;
+
+beforeEach(() => {
+  savedSdkvmHome = process.env.SDKVM_HOME;
+  delete process.env.SDKVM_HOME;
+});
+
+afterEach(() => {
+  if (savedSdkvmHome === undefined) {
+    delete process.env.SDKVM_HOME;
+  } else {
+    process.env.SDKVM_HOME = savedSdkvmHome;
+  }
+});
 
 describe('rc block', () => {
   it('appends to empty content', () => {
@@ -32,21 +48,16 @@ describe('rc block', () => {
     const block = rcBlock('go');
     expect(block).toContain('GO_HOME=');
     expect(block).toContain('current-go');
-    expect(block).toContain('case \":$PATH:\"');
+    expect(block).toContain('case ":$PATH:"');
   });
 
   it('root outside home falls back to absolute path', () => {
     process.env.SDKVM_HOME = '/opt/custom-root';
-    try {
-      const block = rcBlock('go');
-      expect(block).toContain('"/opt/custom-root/current-go"');
-      expect(block).not.toContain('$HOME/../');
-    } finally {
-      delete process.env.SDKVM_HOME;
-    }
+    const block = rcBlock('go');
+    expect(block).toContain('"/opt/custom-root/current-go"');
+    expect(block).not.toContain('$HOME/../');
   });
 });
-
 
 describe('flutter rc block', () => {
   it('exports FLUTTER_HOME pointing at current-flutter', () => {

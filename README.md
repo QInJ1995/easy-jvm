@@ -52,7 +52,7 @@
 
 | 依赖 | 版本 | 说明 |
 |---|---|---|
-| Node.js | >= 18.15 | 唯一运行时依赖（CLI 本身另需 commander / picocolors，随包安装） |
+| Node.js | >= 18.15 | npm 安装时的运行时。脚本安装会自带一份隔离的 Node，不要求本机预先安装 |
 | 操作系统 | — | macOS（Apple Silicon / Intel）/ 主流 Linux 发行版 / Windows 10+ |
 | 解压工具 | 系统自带 | macOS/Linux 用 `tar`；Windows 用系统自带 bsdtar，缺失时回退 PowerShell `Expand-Archive` |
 
@@ -64,8 +64,43 @@
 
 ## 安装
 
+### npm（以及 pnpm / yarn / bun）
+
 ```sh
 npm install -g sdkvm
+pnpm add -g sdkvm
+yarn global add sdkvm
+bun add -g sdkvm
+```
+
+这几条都从 npm registry 安装，本机需要 Node.js >= 18.15。装好后 `sdkvm` 跟着当前 `PATH` 里的 `node` 走；若之后把 Node 切到 18.15 以前的版本，CLI 会起不来，切回较新版本即可。
+
+### 安装脚本（不要求本机已有 Node.js）
+
+macOS / Linux：
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.sh | sh
+```
+
+Windows（PowerShell）：
+
+```powershell
+irm https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.ps1 | iex
+```
+
+脚本会做三件事：
+
+- 下载 Node.js 22.20.0 到 `~/.sdkvm/runtime`，只用来启动 CLI，`sdkvm node use` 不会改到它
+- 从 GitHub Release 下载 `sdkvm.tgz`（校验 SHA-256）解压到 `~/.sdkvm/cli`
+- 写入 `~/.local/bin/sdkvm`（Windows 为 `%USERPROFILE%\.local\bin\sdkvm.cmd`）。该目录不在 `PATH` 里时，脚本会提示要加的那一行
+
+`SDKVM_HOME` 会改数据目录（runtime 与 CLI 都跟着走）。国内下载可改前缀：
+
+```sh
+SDKVM_NODE_DIST=https://npmmirror.com/mirrors/node \
+SDKVM_RELEASE_BASE=https://github.com/QInJ1995/sdkvm/releases \
+  sh install.sh
 ```
 
 安装完成后即可使用 `sdkvm` 命令。验证：
@@ -126,6 +161,7 @@ Java 用裸命令（`sdkvm install …`）或 `sdkvm java …` 子命令组，�
 | `sdkvm mirror show·set·unset` | 管理下载镜像 |
 | `sdkvm java · go · flutter · node …` | 各 SDK 类型的完整命令组 |
 | `sdkvm version` | 打印 CLI 版本号 |
+| `sdkvm upgrade` | 升级 CLI。脚本安装只替换 `~/.sdkvm/cli`；npm 安装则提示 `npm update -g sdkvm` |
 
 各类型的版本语法速查：
 
@@ -388,22 +424,38 @@ rc 代码块只在**新终端**（或 `source ~/.zshrc`）时生效；IDE 需重
 给完整 prerelease 版本号：`sdkvm flutter install 3.49.0-0.1.pre`。`latest` 与版本线（`3.47`）只解析 stable 通道。
 
 **Q：sdkvm 管理 Node.js，那 sdkvm 自己会不会受影响？（自举）**
-`sdkvm` 自身需要 Node.js ≥ 18.15 运行。如果切到很老的 Node 线（如 12），新终端里 `sdkvm` 可能因运行时过旧而启动失败——`sdkvm node use 22` 切回较新版本即可恢复。与 nvm 共存没有冲突：sdkvm 的 PATH 守卫只防自己的条目重复，各管各的；但两者都往 PATH 前面插，后加载的先生效。
+脚本安装使用 `~/.sdkvm/runtime` 里的独立 Node 启动 CLI，`sdkvm node use` 切到任何版本都不影响 `sdkvm` 自己。npm 全局安装则跟着 `PATH` 上的 `node`：切到 18.15 以前的版本时，新终端里 `sdkvm` 可能起不来，`sdkvm node use 22` 切回较新版本即可恢复。与 nvm 共存没有冲突：sdkvm 的 PATH 守卫只防自己的条目重复，各管各的；但两者都往 PATH 前面插，后加载的先生效。
 
 **Q：公司网络走代理，能用吗？**
 当前版本未内置 HTTP 代理支持（Node fetch 不读 `HTTPS_PROXY`）。可用系统级透明代理，或关注后续版本。
 
 **Q：sdkvm 自身怎么升级？**
-`sdkvm` 由 npm 分发：`npm update -g sdkvm`。数据目录（`~/.sdkvm`）与 CLI 升级无关。
+npm 安装：`npm update -g sdkvm`（pnpm / yarn / bun 用各自的全局更新命令）。脚本安装：`sdkvm upgrade`，只替换 `~/.sdkvm/cli`，不动 runtime，也不动已安装的 SDK。数据目录与 CLI 升级无关。也可以重新执行安装脚本。
 
 **Q：CI / 多用户环境想隔离数据？**
 设 `SDKVM_HOME=/path/to/dir` 即可整体重定向（安装、链接、配置全部跟随）。
 
 ## 卸载
 
+npm 安装：
+
 ```sh
 npm uninstall -g sdkvm
-rm -rf ~/.sdkvm       # 删除 SDK 数据目录（会删掉所有已装版本，先确认）
+```
+
+脚本安装：删除 shim 与 CLI 运行时，已装 SDK 还在。
+
+```sh
+rm -f ~/.local/bin/sdkvm
+rm -rf ~/.sdkvm/cli ~/.sdkvm/runtime
+```
+
+Windows 对应删除 `%USERPROFILE%\.local\bin\sdkvm.cmd`，以及 `%USERPROFILE%\.sdkvm\cli`、`%USERPROFILE%\.sdkvm\runtime`。
+
+确认不再需要已安装的 JDK / Go / Flutter / Node 之后，再删数据目录：
+
+```sh
+rm -rf ~/.sdkvm
 ```
 
 并删除 shell 配置文件中 `>>> sdkvm java init >>>`、`>>> sdkvm go init >>>`、`>>> sdkvm flutter init >>>`、`>>> sdkvm node init >>>` 各自到 `<<< … <<<` 之间的标记块。

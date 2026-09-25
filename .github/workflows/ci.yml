@@ -44,21 +44,6 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-      - name: migration smoke (~/.jvm → ~/.sdkvm)
-        if: runner.os == 'Linux'
-        run: |
-          mkdir -p "$HOME/.jvm/jdks/temurin-21.0.5+11/bin"
-          touch "$HOME/.jvm/jdks/temurin-21.0.5+11/bin/java"
-          echo '{"version":1,"defaultVendor":"temurin","mirror":{}}' > "$HOME/.jvm/config.json"
-          ln -s "$HOME/.jvm/jdks/temurin-21.0.5+11" "$HOME/.jvm/current"
-          printf 'export A=1\n\n# >>> jvm init >>>\nexport JAVA_HOME="$HOME/.jvm/current"\n# <<< jvm init <<<\n' > "$HOME/.bashrc"
-          node dist/index.js ls | grep 'temurin-21.0.5+11'
-          test -d "$HOME/.sdkvm" && test ! -e "$HOME/.jvm"
-          test -e "$HOME/.sdkvm/current-java"
-          grep -q 'sdkvm java init' "$HOME/.bashrc"
-          grep -q 'JAVA_HOME="$HOME/.sdkvm/current-java"' "$HOME/.bashrc"
-          ! grep -q '>>> jvm init' "$HOME/.bashrc"
-
       - name: install temurin 21
         run: node dist/index.js install 21
 

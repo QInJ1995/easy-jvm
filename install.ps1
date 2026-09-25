@@ -6,14 +6,7 @@ $ErrorActionPreference = 'Stop'
 $RuntimeNode = if ($env:SDKVM_RUNTIME_NODE) { $env:SDKVM_RUNTIME_NODE } else { '22.20.0' }
 $NodeDist = if ($env:SDKVM_NODE_DIST) { $env:SDKVM_NODE_DIST.TrimEnd('/') } else { 'https://nodejs.org/dist' }
 $ReleaseBase = if ($env:SDKVM_RELEASE_BASE) { $env:SDKVM_RELEASE_BASE.TrimEnd('/') } else { 'https://github.com/QInJ1995/sdkvm/releases' }
-# Align with CLI envOverride(SDKVM_HOME, JVM_HOME)
-if ($env:SDKVM_HOME) {
-  $Root = $env:SDKVM_HOME
-} elseif ($env:JVM_HOME) {
-  $Root = $env:JVM_HOME
-} else {
-  $Root = Join-Path $env:USERPROFILE '.sdkvm'
-}
+$Root = if ($env:SDKVM_HOME) { $env:SDKVM_HOME } else { Join-Path $env:USERPROFILE '.sdkvm' }
 $BinDir = Join-Path $env:USERPROFILE '.local\bin'
 
 # Prefer the machine arch under WOW64 (32-bit PowerShell on 64-bit Windows)
@@ -104,7 +97,6 @@ try {
   @"
 @echo off
 set "ROOT=%SDKVM_HOME%"
-if "%ROOT%"=="" set "ROOT=%JVM_HOME%"
 if "%ROOT%"=="" set "ROOT=$Root"
 "%ROOT%\runtime\current\node.exe" "%ROOT%\cli\dist\index.js" %*
 "@ | Set-Content -Encoding ascii (Join-Path $BinDir 'sdkvm.cmd')

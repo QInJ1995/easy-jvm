@@ -1,13 +1,13 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { envOverride } from './env.js';
+import { envGet } from './env.js';
 import { SDK_TYPES, getSdkType } from '../sdk/index.js';
 import type { SdkTypeId } from '../sdk/types.js';
 
-/** SDKVM_HOME（旧名 JVM_HOME 仍识别）可覆盖根目录（测试与自定义安装位置用） */
+/** SDKVM_HOME 可覆盖根目录（测试与自定义安装位置用） */
 export function sdkvmHome(): string {
-  return envOverride('SDKVM_HOME', 'JVM_HOME') ?? path.join(os.homedir(), '.sdkvm');
+  return envGet('SDKVM_HOME') ?? path.join(os.homedir(), '.sdkvm');
 }
 
 export const paths = {

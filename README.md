@@ -104,7 +104,7 @@ irm https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.ps1 | iex
 2. 从 GitHub Release 下载 `sdkvm.tgz`，校验 SHA-256 后解压到 `~/.sdkvm/cli`。
 3. 写入 `~/.local/bin/sdkvm`（Windows 为 `%USERPROFILE%\.local\bin\sdkvm.cmd`）。目录不在 `PATH` 中时，脚本会打印需要追加的那一行。
 
-数据根与 CLI 一致：优先 `SDKVM_HOME`，其次旧名 `JVM_HOME`，默认 `~/.sdkvm`。runtime 与 CLI 都落在该根下。国内可换下载前缀：
+数据根与 CLI 一致：`SDKVM_HOME` 可覆盖，默认 `~/.sdkvm`。runtime 与 CLI 都落在该根下。国内可换下载前缀：
 
 ```sh
 SDKVM_NODE_DIST=https://npmmirror.com/mirrors/node \
@@ -306,7 +306,7 @@ Java 用 `sdkvm mirror`，其余用 `sdkvm go mirror`、`sdkvm flutter mirror`�
 
 ### 目录布局
 
-数据根目录是 `~/.sdkvm`（Windows 为 `%USERPROFILE%\.sdkvm`）。`SDKVM_HOME` 可覆盖；旧名 `JVM_HOME` 仍然有效。
+数据根目录是 `~/.sdkvm`（Windows 为 `%USERPROFILE%\.sdkvm`）。`SDKVM_HOME` 可覆盖。
 
 ```
 ~/.sdkvm/
@@ -384,14 +384,14 @@ Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变�
 
 ### 环境变量
 
-| 变量 | 旧名 | 说明 |
-|---|---|---|
-| `SDKVM_HOME` | `JVM_HOME` | 数据根目录，默认 `~/.sdkvm` |
-| `SDKVM_MIRROR` | `JVM_MIRROR` | 临时镜像，优先级高于配置文件，不写入配置 |
-| `SDKVM_QUIET` | `JVM_QUIET` | 非空时抑制 info 与 warn |
-| `SDKVM_NODE_DIST` | — | 安装脚本使用的 Node 发行根 URL |
-| `SDKVM_RELEASE_BASE` | — | 安装脚本与 `sdkvm upgrade` 使用的 GitHub Release 根 URL |
-| `SDKVM_RUNTIME_NODE` | — | 安装脚本内置的 Node 版本，默认 `22.20.0` |
+| 变量 | 说明 |
+|---|---|
+| `SDKVM_HOME` | 数据根目录，默认 `~/.sdkvm` |
+| `SDKVM_MIRROR` | 临时镜像，优先级高于配置文件，不写入配置 |
+| `SDKVM_QUIET` | 非空时抑制 info 与 warn |
+| `SDKVM_NODE_DIST` | 安装脚本使用的 Node 发行根 URL |
+| `SDKVM_RELEASE_BASE` | 安装脚本与 `sdkvm upgrade` 使用的 GitHub Release 根 URL |
+| `SDKVM_RUNTIME_NODE` | 安装脚本内置的 Node 版本，默认 `22.20.0` |
 
 镜像优先级：`SDKVM_MIRROR` > `config.mirror[<vendor>]` > 官方源。
 
@@ -507,7 +507,7 @@ npm run build
 ```
 src/
 ├── cli/       # install / use / ls / uninstall / mirror / upgrade
-├── core/      # 版本解析、注册表、配置、迁移、文件锁
+├── core/      # 版本解析、注册表、配置、文件锁
 ├── sdk/       # java / go / flutter / node 的目录、环境变量、版本语法
 ├── vendor/    # temurin / zulu / corretto / golang / flutter / nodejs 与镜像改写
 ├── fs/        # 解压、目录归一化、链接

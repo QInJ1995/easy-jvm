@@ -9,7 +9,6 @@ import { uninstallCommand } from './cli/uninstall.js';
 import { mirrorCommand } from './cli/mirror.js';
 import { getVersion, versionCommand } from './cli/misc.js';
 import { upgradeCommand } from './cli/upgrade.js';
-import { migrateLegacyHomeIfNeeded } from './core/migrate.js';
 import { getSdkType } from './sdk/index.js';
 import type { SdkTypeId } from './sdk/types.js';
 
@@ -111,11 +110,6 @@ program
   .command('upgrade')
   .description('upgrade the sdkvm CLI (script install replaces ~/.sdkvm/cli; npm install prints npm update -g)')
   .action(upgradeCommand);
-
-// 首次运行时自动迁移 easy-jvm 时代的 ~/.jvm → ~/.sdkvm（幂等）
-program.hook('preAction', async () => {
-  await migrateLegacyHomeIfNeeded();
-});
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const e = toSdkvmError(err);

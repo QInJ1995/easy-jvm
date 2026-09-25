@@ -13,12 +13,12 @@ function mkJdk(dirName: string): void {
 
 beforeEach(() => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), 'jvm-registry-'));
-  process.env.JVM_HOME = home;
+  process.env.SDKVM_HOME = home;
 });
 
 afterEach(() => {
   fs.rmSync(home, { recursive: true, force: true });
-  delete process.env.JVM_HOME;
+  delete process.env.SDKVM_HOME;
 });
 
 describe('registry', () => {

@@ -104,7 +104,7 @@ The script:
 2. Downloads `sdkvm.tgz` from the GitHub Release, checks SHA-256, and extracts it to `~/.sdkvm/cli`.
 3. Writes `~/.local/bin/sdkvm` (on Windows, `%USERPROFILE%\.local\bin\sdkvm.cmd`). If that directory is not on `PATH`, the script prints the line to add.
 
-The data root matches the CLI: `SDKVM_HOME` first, then the legacy `JVM_HOME`, otherwise `~/.sdkvm`. Both the runtime and the CLI live under that root. Override download prefixes when needed:
+The data root matches the CLI: `SDKVM_HOME` overrides it, otherwise `~/.sdkvm`. Both the runtime and the CLI live under that root. Override download prefixes when needed:
 
 ```sh
 SDKVM_NODE_DIST=https://npmmirror.com/mirrors/node \
@@ -306,7 +306,7 @@ Rules:
 
 ### Layout
 
-The data root is `~/.sdkvm` (`%USERPROFILE%\.sdkvm` on Windows). `SDKVM_HOME` overrides it. The old name `JVM_HOME` is still recognized.
+The data root is `~/.sdkvm` (`%USERPROFILE%\.sdkvm` on Windows). `SDKVM_HOME` overrides it.
 
 ```
 ~/.sdkvm/
@@ -384,14 +384,14 @@ Path: `~/.sdkvm/config.json`. A corrupt file is renamed to `config.json.bak` and
 
 ### Environment variables
 
-| Variable | Legacy name | Meaning |
-|---|---|---|
-| `SDKVM_HOME` | `JVM_HOME` | Data root. Default `~/.sdkvm` |
-| `SDKVM_MIRROR` | `JVM_MIRROR` | One-shot mirror. Wins over the config file and is not saved |
-| `SDKVM_QUIET` | `JVM_QUIET` | Non-empty suppresses info and warn logs |
-| `SDKVM_NODE_DIST` | — | Node distribution root used by the install script |
-| `SDKVM_RELEASE_BASE` | — | GitHub Release root used by the install script and `sdkvm upgrade` |
-| `SDKVM_RUNTIME_NODE` | — | Node version bundled by the install script. Default `22.20.0` |
+| Variable | Meaning |
+|---|---|
+| `SDKVM_HOME` | Data root. Default `~/.sdkvm` |
+| `SDKVM_MIRROR` | One-shot mirror. Wins over the config file and is not saved |
+| `SDKVM_QUIET` | Non-empty suppresses info and warn logs |
+| `SDKVM_NODE_DIST` | Node distribution root used by the install script |
+| `SDKVM_RELEASE_BASE` | GitHub Release root used by the install script and `sdkvm upgrade` |
+| `SDKVM_RUNTIME_NODE` | Node version bundled by the install script. Default `22.20.0` |
 
 Mirror precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official source.
 
@@ -507,7 +507,7 @@ npm run build
 ```
 src/
 ├── cli/       # install / use / ls / uninstall / mirror / upgrade
-├── core/      # version parsing, registry, config, migration, file lock
+├── core/      # version parsing, registry, config, file lock
 ├── sdk/       # java / go / flutter / node: directories, env vars, version syntax
 ├── vendor/    # temurin / zulu / corretto / golang / flutter / nodejs, plus mirror rewrite
 ├── fs/        # extract, layout normalize, links

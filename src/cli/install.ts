@@ -4,7 +4,7 @@ import { detectPlatform } from '../core/platform.js';
 import { loadConfig } from '../core/config.js';
 import { withLock } from '../core/lock.js';
 import { ensureLayout, paths } from '../core/paths.js';
-import { envOverride } from '../core/env.js';
+import { envGet } from '../core/env.js';
 import { parseUserSpec } from '../core/version.js';
 import { getSdkType } from '../sdk/index.js';
 import type { SdkTypeId } from '../sdk/types.js';
@@ -46,7 +46,7 @@ export async function installCommand(
 
   log.info(`resolving ${vendor.label} ${specInput} for ${platform.os}/${platform.arch} ...`);
   const resolved = await vendor.resolve(spec, platform);
-  const mirrorRoot = envOverride('SDKVM_MIRROR', 'JVM_MIRROR') ?? config.mirror[vendorId] ?? null;
+  const mirrorRoot = envGet('SDKVM_MIRROR') ?? config.mirror[vendorId] ?? null;
   const artifact = applyMirror(resolved, platform, mirrorRoot);
 
   const finalDir = path.join(paths.sdks(type), artifact.dirName);

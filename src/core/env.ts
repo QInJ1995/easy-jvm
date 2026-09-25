@@ -1,11 +1,6 @@
-/**
- * 环境变量读取：新名优先，旧名（JVM_*）永久作为别名回退，
- * 保证从 easy-jvm 时代迁移过来的用户配置持续生效。
- */
-export function envOverride(newName: string, legacyName: string): string | undefined {
-  const fresh = process.env[newName];
-  if (fresh !== undefined && fresh !== '') return fresh;
-  const legacy = process.env[legacyName];
-  if (legacy !== undefined && legacy !== '') return legacy;
+/** 读取非空环境变量；未设置或空串返回 undefined。 */
+export function envGet(name: string): string | undefined {
+  const value = process.env[name];
+  if (value !== undefined && value !== '') return value;
   return undefined;
 }

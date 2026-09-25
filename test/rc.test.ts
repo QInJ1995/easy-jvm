@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rcBegin, rcEnd, rcBlock, stripRcBlock, stripLegacyRcBlock, upsertRcContent } from '../src/shell/rc.js';
+import { rcBegin, rcEnd, rcBlock, stripRcBlock, upsertRcContent } from '../src/shell/rc.js';
 
 describe('rc block', () => {
   it('appends to empty content', () => {
@@ -22,20 +22,6 @@ describe('rc block', () => {
     const withBlock = upsertRcContent(original, 'java');
     const stripped = stripRcBlock(withBlock, 'java').replace(/\s+$/, '') + '\n';
     expect(stripped).toBe(original);
-  });
-
-  it('upsert strips legacy jvm init block', () => {
-    const legacy =
-      'export A=1\n\n# >>> jvm init >>>\nexport JAVA_HOME="$HOME/.jvm/current"\n# <<< jvm init <<<\n';
-    const out = upsertRcContent(legacy, 'java');
-    expect(out).not.toContain('# >>> jvm init >>>');
-    expect(out).toContain(rcBegin('java'));
-    expect(out).toContain('export A=1');
-  });
-
-  it('legacy strip standalone', () => {
-    const legacy = 'x\n# >>> jvm init >>>\nold\n# <<< jvm init <<<\ny\n';
-    expect(stripLegacyRcBlock(legacy).replace(/\s+/g, '')).toBe('xy');
   });
 
   it('path guard present', () => {

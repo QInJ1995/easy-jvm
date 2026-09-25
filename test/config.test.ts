@@ -8,12 +8,12 @@ let home: string;
 
 beforeEach(() => {
   home = fs.mkdtempSync(path.join(os.tmpdir(), 'jvm-config-'));
-  process.env.JVM_HOME = home;
+  process.env.SDKVM_HOME = home;
 });
 
 afterEach(() => {
   fs.rmSync(home, { recursive: true, force: true });
-  delete process.env.JVM_HOME;
+  delete process.env.SDKVM_HOME;
 });
 
 describe('config', () => {

@@ -7,14 +7,7 @@ set -eu
 RUNTIME_NODE_VERSION="${SDKVM_RUNTIME_NODE:-22.20.0}"
 NODE_DIST="${SDKVM_NODE_DIST:-https://nodejs.org/dist}"
 RELEASE_BASE="${SDKVM_RELEASE_BASE:-https://github.com/QInJ1995/sdkvm/releases}"
-# 与 CLI 的 envOverride(SDKVM_HOME, JVM_HOME) 对齐
-if [ -n "${SDKVM_HOME:-}" ]; then
-  ROOT="$SDKVM_HOME"
-elif [ -n "${JVM_HOME:-}" ]; then
-  ROOT="$JVM_HOME"
-else
-  ROOT="$HOME/.sdkvm"
-fi
+ROOT="${SDKVM_HOME:-$HOME/.sdkvm}"
 BIN_DIR="${HOME}/.local/bin"
 NODE_DIST="${NODE_DIST%/}"
 RELEASE_BASE="${RELEASE_BASE%/}"
@@ -123,8 +116,6 @@ cat > "$BIN_DIR/sdkvm" <<EOF
 #!/bin/sh
 if [ -n "\${SDKVM_HOME:-}" ]; then
   ROOT="\$SDKVM_HOME"
-elif [ -n "\${JVM_HOME:-}" ]; then
-  ROOT="\$JVM_HOME"
 else
   ROOT='$quoted_root'
 fi

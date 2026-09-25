@@ -11,4 +11,6 @@ export default defineConfig({
   splitting: false,
   shims: false,
   dts: false,
+  // 脚本安装解压的是 npm pack 产物，不含 node_modules；依赖必须打进 dist
+  noExternal: ['commander', 'picocolors'],
 });

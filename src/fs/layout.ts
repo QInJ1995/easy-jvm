@@ -8,7 +8,7 @@ import type { SdkTypeId } from '../sdk/types.js';
 export interface NormalizedSdk {
   /** 解压出的 SDK 根目录（含 release 文件那一层；java macOS 为 bundle 根） */
   root: string;
-  /** 环境语义目录（JAVA_HOME / GOROOT；java macOS bundle 下为 root/Contents/Home） */
+  /** 环境语义目录（JAVA_HOME / GO_HOME 等；java macOS bundle 下为 root/Contents/Home） */
   home: string;
 }
 

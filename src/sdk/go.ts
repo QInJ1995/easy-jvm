@@ -8,7 +8,7 @@ export const goSdk: SdkTypeSpec = {
   label: 'Go',
   installDirName: 'gos',
   currentLinkName: 'current-go',
-  envVar: 'GOROOT',
+  envVar: 'GO_HOME',
   supportsLts: false,
   vendors: GO_VENDORS,
   parseUserSpec: parseGoUserSpec,

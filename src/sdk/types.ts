@@ -16,7 +16,7 @@ export interface SdkTypeSpec {
   readonly installDirName: string;
   /** current 链接名（根目录之下） */
   readonly currentLinkName: string;
-  /** 切换时导出的环境变量名：JAVA_HOME / GOROOT */
+  /** 切换时导出的环境变量名：JAVA_HOME / GO_HOME / FLUTTER_HOME / NODE_HOME */
   readonly envVar: string;
   /** 是否支持 lts 语义（java / node 有，go / flutter 没有） */
   readonly supportsLts: boolean;

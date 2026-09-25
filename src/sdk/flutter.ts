@@ -8,7 +8,7 @@ export const flutterSdk: SdkTypeSpec = {
   label: 'Flutter',
   installDirName: 'flutters',
   currentLinkName: 'current-flutter',
-  envVar: 'FLUTTER_ROOT',
+  envVar: 'FLUTTER_HOME',
   supportsLts: false,
   vendors: FLUTTER_VENDORS,
   parseUserSpec: parseFlutterUserSpec,

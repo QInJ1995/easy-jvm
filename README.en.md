@@ -47,7 +47,7 @@ Manage **Java JDKs**, the **Go toolchain**, the **Flutter SDK**, and the **Node.
 
 Behavior:
 
-- Each SDK lives in its own directory. `JAVA_HOME`, `GOROOT`, `FLUTTER_ROOT`, and `NODE_HOME` do not overwrite each other.
+- Each SDK lives in its own directory. `JAVA_HOME`, `GO_HOME`, `FLUTTER_HOME`, and `NODE_HOME` do not overwrite each other.
 - `use` updates one symlink (a junction on Windows). Installed trees are not moved.
 - Download URLs come from official APIs. Go, Flutter, and Node.js require a SHA-256 match. Java vendors are verified when a checksum is available.
 - Temurin, Go, Flutter, and Node.js accept a mirror. Checksums still come from the official manifest.
@@ -215,7 +215,7 @@ A failed checksum or extract removes the partial directory and the cache. The do
 
 ### `sdkvm use <version>`
 
-Match an installed version, then update the `current-*` link and `JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT` / `NODE_HOME` / `PATH`.
+Match an installed version, then update the `current-*` link and `JAVA_HOME` / `GO_HOME` / `FLUTTER_HOME` / `NODE_HOME` / `PATH`.
 
 ```sh
 sdkvm use 21
@@ -260,9 +260,9 @@ $ sdkvm current
 java: temurin-21.0.12.1
   JAVA_HOME → ~/.sdkvm/jdks/temurin-21.0.12.1
 go: golang-1.24.5
-  GOROOT → ~/.sdkvm/gos/golang-1.24.5
+  GO_HOME → ~/.sdkvm/gos/golang-1.24.5
 flutter: flutter-3.47.5
-  FLUTTER_ROOT → ~/.sdkvm/flutters/flutter-3.47.5
+  FLUTTER_HOME → ~/.sdkvm/flutters/flutter-3.47.5
 node: nodejs-22.20.0
   NODE_HOME → ~/.sdkvm/nodes/nodejs-22.20.0
 ```
@@ -377,13 +377,13 @@ case ":$PATH:" in *":$JAVA_HOME/bin:"*) ;; *) export PATH="$JAVA_HOME/bin:$PATH"
 # <<< sdkvm java init <<<
 
 # >>> sdkvm go init >>>
-export GOROOT="$HOME/.sdkvm/current-go"
-case ":$PATH:" in *":$GOROOT/bin:"*) ;; *) export PATH="$GOROOT/bin:$PATH";; esac
+export GO_HOME="$HOME/.sdkvm/current-go"
+case ":$PATH:" in *":$GO_HOME/bin:"*) ;; *) export PATH="$GO_HOME/bin:$PATH";; esac
 # <<< sdkvm go init <<<
 
 # >>> sdkvm flutter init >>>
-export FLUTTER_ROOT="$HOME/.sdkvm/current-flutter"
-case ":$PATH:" in *":$FLUTTER_ROOT/bin:"*) ;; *) export PATH="$FLUTTER_ROOT/bin:$PATH";; esac
+export FLUTTER_HOME="$HOME/.sdkvm/current-flutter"
+case ":$PATH:" in *":$FLUTTER_HOME/bin:"*) ;; *) export PATH="$FLUTTER_HOME/bin:$PATH";; esac
 # <<< sdkvm flutter init <<<
 
 # >>> sdkvm node init >>>
@@ -394,7 +394,7 @@ case ":$PATH:" in *":$NODE_HOME/bin:"*) ;; *) export PATH="$NODE_HOME/bin:$PATH"
 
 The variables point at the link. Later `use` calls only retarget that link, and a new terminal reads the new value.
 
-On Windows the four `current-*` entries are junctions. `use` writes user environment variables as `REG_EXPAND_SZ` and keeps `%VAR%` references, which avoids the 1024-character `setx` truncation. PATH gains `%JAVA_HOME%\bin`, `%GOROOT%\bin`, and `%FLUTTER_ROOT%\bin`. The Windows Node.js archive has no `bin/` directory, so its PATH entry is `%NODE_HOME%` itself. Open a new terminal or restart the IDE.
+On Windows the four `current-*` entries are junctions. `use` writes user environment variables as `REG_EXPAND_SZ` and keeps `%VAR%` references, which avoids the 1024-character `setx` truncation. PATH gains `%JAVA_HOME%\bin`, `%GO_HOME%\bin`, and `%FLUTTER_HOME%\bin`. The Windows Node.js archive has no `bin/` directory, so its PATH entry is `%NODE_HOME%` itself. Open a new terminal or restart the IDE.
 
 ## Configuration
 
@@ -555,7 +555,7 @@ rm -rf ~/.sdkvm
 
 Also delete the shell blocks between `>>> sdkvm java init >>>`, `>>> sdkvm go init >>>`, `>>> sdkvm flutter init >>>`, `>>> sdkvm node init >>>` and their matching `<<< … <<<` markers.
 
-On Windows, remove `JAVA_HOME`, `GOROOT`, `FLUTTER_ROOT`, and `NODE_HOME` from the user environment, and remove `%JAVA_HOME%\bin`, `%GOROOT%\bin`, `%FLUTTER_ROOT%\bin`, and `%NODE_HOME%` from the user PATH.
+On Windows, remove `JAVA_HOME`, `GO_HOME`, `FLUTTER_HOME`, and `NODE_HOME` from the user environment, and remove `%JAVA_HOME%\bin`, `%GO_HOME%\bin`, `%FLUTTER_HOME%\bin`, and `%NODE_HOME%` from the user PATH.
 
 ## Development
 

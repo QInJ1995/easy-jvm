@@ -136,7 +136,7 @@ jobs:
           test -x "$HOME/.sdkvm/current-go/bin/go"
           "$HOME/.sdkvm/current-go/bin/go" version
           grep -q 'sdkvm go init' "$HOME/.bashrc"
-          grep -q 'GOROOT="$HOME/.sdkvm/current-go"' "$HOME/.bashrc"
+          grep -q 'GO_HOME="$HOME/.sdkvm/current-go"' "$HOME/.bashrc"
 
       - name: go junction + registry (windows)
         if: runner.os == 'Windows'
@@ -145,11 +145,11 @@ jobs:
           & "$env:USERPROFILE\.sdkvm\current-go\bin\go.exe" version
           $k=[Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment')
           $fmt=[Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames
-          $reg=[string]$k.GetValue('GOROOT','',$fmt)
-          if ($reg -ne '%USERPROFILE%\.sdkvm\current-go') { throw "registry GOROOT wrong: $reg" }
-          if ($k.GetValueKind('GOROOT') -ne [Microsoft.Win32.RegistryValueKind]::ExpandString) { throw 'GOROOT is not REG_EXPAND_SZ' }
+          $reg=[string]$k.GetValue('GO_HOME','',$fmt)
+          if ($reg -ne '%USERPROFILE%\.sdkvm\current-go') { throw "registry GO_HOME wrong: $reg" }
+          if ($k.GetValueKind('GO_HOME') -ne [Microsoft.Win32.RegistryValueKind]::ExpandString) { throw 'GO_HOME is not REG_EXPAND_SZ' }
           $userPath=[string]$k.GetValue('Path','',$fmt)
-          if ($userPath -notlike '*%GOROOT%\bin*') { throw "user PATH missing %GOROOT%\bin: $userPath" }
+          if ($userPath -notlike '*%GO_HOME%\bin*') { throw "user PATH missing %GO_HOME%\bin: $userPath" }
 
       - name: go mirror smoke (config only)
         run: |

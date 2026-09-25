@@ -12,7 +12,7 @@ export interface InstalledSdk {
   type: SdkTypeId;
   version: SdkVersion;
   dirPath: string;
-  /** 环境语义路径（JAVA_HOME / GOROOT 指向它；java macOS bundle → Contents/Home） */
+  /** 环境语义路径（JAVA_HOME / GO_HOME 等指向它；java macOS bundle → Contents/Home） */
   home: string;
 }
 

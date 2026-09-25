@@ -47,7 +47,7 @@
 
 行为约定：
 
-- 各 SDK 目录隔离，`JAVA_HOME`、`GOROOT`、`FLUTTER_ROOT`、`NODE_HOME` 互不覆盖。
+- 各 SDK 目录隔离，`JAVA_HOME`、`GO_HOME`、`FLUTTER_HOME`、`NODE_HOME` 互不覆盖。
 - `use` 只改一个符号链接（Windows 为 junction），不搬移已安装的文件。
 - 下载地址由官方 API 解析。Go、Flutter、Node.js 强制校验 SHA-256；Java 各源尽力校验。
 - Temurin、Go、Flutter、Node.js 可配置镜像。校验和仍取自官方清单。
@@ -215,7 +215,7 @@ sdkvm switch to it: sdkvm use 21
 
 ### `sdkvm use <version>`
 
-在已安装版本中匹配，并更新对应的 `current-*` 链接与 `JAVA_HOME` / `GOROOT` / `FLUTTER_ROOT` / `NODE_HOME` / `PATH`。
+在已安装版本中匹配，并更新对应的 `current-*` 链接与 `JAVA_HOME` / `GO_HOME` / `FLUTTER_HOME` / `NODE_HOME` / `PATH`。
 
 ```sh
 sdkvm use 21
@@ -260,9 +260,9 @@ $ sdkvm current
 java: temurin-21.0.12.1
   JAVA_HOME → ~/.sdkvm/jdks/temurin-21.0.12.1
 go: golang-1.24.5
-  GOROOT → ~/.sdkvm/gos/golang-1.24.5
+  GO_HOME → ~/.sdkvm/gos/golang-1.24.5
 flutter: flutter-3.47.5
-  FLUTTER_ROOT → ~/.sdkvm/flutters/flutter-3.47.5
+  FLUTTER_HOME → ~/.sdkvm/flutters/flutter-3.47.5
 node: nodejs-22.20.0
   NODE_HOME → ~/.sdkvm/nodes/nodejs-22.20.0
 ```
@@ -377,13 +377,13 @@ case ":$PATH:" in *":$JAVA_HOME/bin:"*) ;; *) export PATH="$JAVA_HOME/bin:$PATH"
 # <<< sdkvm java init <<<
 
 # >>> sdkvm go init >>>
-export GOROOT="$HOME/.sdkvm/current-go"
-case ":$PATH:" in *":$GOROOT/bin:"*) ;; *) export PATH="$GOROOT/bin:$PATH";; esac
+export GO_HOME="$HOME/.sdkvm/current-go"
+case ":$PATH:" in *":$GO_HOME/bin:"*) ;; *) export PATH="$GO_HOME/bin:$PATH";; esac
 # <<< sdkvm go init <<<
 
 # >>> sdkvm flutter init >>>
-export FLUTTER_ROOT="$HOME/.sdkvm/current-flutter"
-case ":$PATH:" in *":$FLUTTER_ROOT/bin:"*) ;; *) export PATH="$FLUTTER_ROOT/bin:$PATH";; esac
+export FLUTTER_HOME="$HOME/.sdkvm/current-flutter"
+case ":$PATH:" in *":$FLUTTER_HOME/bin:"*) ;; *) export PATH="$FLUTTER_HOME/bin:$PATH";; esac
 # <<< sdkvm flutter init <<<
 
 # >>> sdkvm node init >>>
@@ -394,7 +394,7 @@ case ":$PATH:" in *":$NODE_HOME/bin:"*) ;; *) export PATH="$NODE_HOME/bin:$PATH"
 
 环境变量指向链接。之后的 `use` 只改链接，新终端会读到新值。
 
-Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变量写成 `REG_EXPAND_SZ`，保留 `%VAR%` 引用，避免 `setx` 的 1024 字符截断。PATH 追加 `%JAVA_HOME%\bin`、`%GOROOT%\bin`、`%FLUTTER_ROOT%\bin`。Node.js 的 Windows 归档没有 `bin/`，PATH 项是 `%NODE_HOME%` 本身。需要重开终端或重启 IDE。
+Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变量写成 `REG_EXPAND_SZ`，保留 `%VAR%` 引用，避免 `setx` 的 1024 字符截断。PATH 追加 `%JAVA_HOME%\bin`、`%GO_HOME%\bin`、`%FLUTTER_HOME%\bin`。Node.js 的 Windows 归档没有 `bin/`，PATH 项是 `%NODE_HOME%` 本身。需要重开终端或重启 IDE。
 
 ## 配置
 
@@ -555,7 +555,7 @@ rm -rf ~/.sdkvm
 
 同时删除 shell 配置里 `>>> sdkvm java init >>>`、`>>> sdkvm go init >>>`、`>>> sdkvm flutter init >>>`、`>>> sdkvm node init >>>` 到对应 `<<< … <<<` 之间的块。
 
-Windows 还需要在系统设置中删除 `JAVA_HOME`、`GOROOT`、`FLUTTER_ROOT`、`NODE_HOME`，并从用户 PATH 移除 `%JAVA_HOME%\bin`、`%GOROOT%\bin`、`%FLUTTER_ROOT%\bin`、`%NODE_HOME%`。
+Windows 还需要在系统设置中删除 `JAVA_HOME`、`GO_HOME`、`FLUTTER_HOME`、`NODE_HOME`，并从用户 PATH 移除 `%JAVA_HOME%\bin`、`%GO_HOME%\bin`、`%FLUTTER_HOME%\bin`、`%NODE_HOME%`。
 
 ## 开发
 

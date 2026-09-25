@@ -28,9 +28,9 @@ describe('rc block', () => {
     expect(rcBlock('java')).toContain('case ":$PATH:"');
   });
 
-  it('go block exports GOROOT', () => {
+  it('go block exports GO_HOME', () => {
     const block = rcBlock('go');
-    expect(block).toContain('GOROOT=');
+    expect(block).toContain('GO_HOME=');
     expect(block).toContain('current-go');
     expect(block).toContain('case \":$PATH:\"');
   });
@@ -49,9 +49,9 @@ describe('rc block', () => {
 
 
 describe('flutter rc block', () => {
-  it('exports FLUTTER_ROOT pointing at current-flutter', () => {
+  it('exports FLUTTER_HOME pointing at current-flutter', () => {
     const block = rcBlock('flutter');
-    expect(block).toContain('FLUTTER_ROOT=');
+    expect(block).toContain('FLUTTER_HOME=');
     expect(block).toContain('current-flutter');
     expect(block).toContain('case ":$PATH:"');
   });

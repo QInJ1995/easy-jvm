@@ -45,7 +45,7 @@ export async function setEnvWin(name: string, value: string): Promise<void> {
   await run('powershell.exe', encoded(ps));
 }
 
-/** 写该类型的环境变量（JAVA_HOME / GOROOT → current 链接） */
+/** 写该类型的环境变量（JAVA_HOME / GO_HOME / FLUTTER_HOME / NODE_HOME → current 链接） */
 export async function setSdkEnvWin(type: SdkTypeId): Promise<void> {
   const spec = getSdkType(type);
   await setEnvWin(spec.envVar, currentLinkWin(type));

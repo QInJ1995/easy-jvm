@@ -27,7 +27,7 @@ Manage **Java JDKs**, the **Go toolchain**, the **Flutter SDK**, and the **Node.
 - [Version syntax](#version-syntax)
 - [How it works](#how-it-works)
 - [Configuration](#configuration)
-- [Mirrors](#mirrors)
+- [Mirrors and npm registry](#mirrors-and-npm-registry)
 - [Security](#security)
 - [FAQ](#faq)
 - [Uninstall](#uninstall)
@@ -116,7 +116,7 @@ Check:
 
 ```console
 $ sdkvm version
-1.0.0
+1.0.1
 ```
 
 ## Upgrade
@@ -130,8 +130,17 @@ $ sdkvm version
 
 ## Quick start
 
+Java accepts bare commands (same as `sdkvm java`). Go, Flutter, and Node use subcommands.
+
 ```sh
-# Java (bare commands are the same as sdkvm java)
+# Optional: faster downloads in China (scoped per SDK type)
+sdkvm mirror use nju          # Java Temurin
+sdkvm go mirror use nju
+sdkvm flutter mirror use nju
+sdkvm node mirror use nju
+sdkvm nrm use taobao          # npm install only; independent of mirror above
+
+# Java
 sdkvm install lts
 sdkvm use 25
 java -version
@@ -141,7 +150,7 @@ sdkvm go install 1.24
 sdkvm go use 1.24
 go version
 
-# Flutter (stable channel)
+# Flutter (stable)
 sdkvm flutter install 3.47
 sdkvm flutter use 3.47
 flutter --version
@@ -157,13 +166,12 @@ sdkvm java install 21 --vendor zulu
 sdkvm java use zulu-21
 sdkvm ls
 sdkvm go ls
-sdkvm flutter ls
-sdkvm node ls
 sdkvm uninstall zulu-21
-sdkvm go uninstall 1.24
 ```
 
-After the first `use`, open a new terminal, or `source` the rc file on macOS / Linux.
+After the first `use`, **open a new terminal**, or on macOS / Linux run `source ~/.zshrc` (or the matching bash rc). Restart the IDE so it picks up the new environment variables.
+
+Day-to-day: `install` → `use` → `current` / `ls`. Mirrors and npm registries: [Mirrors and npm registry](#mirrors-and-npm-registry).
 
 ## Commands
 
@@ -273,49 +281,35 @@ Same syntax as `use`. Uninstalling the current version clears that `current-*` l
 
 ### `sdkvm mirror`
 
-Java uses `sdkvm mirror`. The others use `sdkvm go mirror`, `sdkvm flutter mirror`, and `sdkvm node mirror`. **Each SDK type has its own scope.** See [Mirrors](#mirrors).
+Manages **install-archive mirrors** per SDK type (not the npm package registry). Java: `sdkvm mirror`. Others: `sdkvm go|flutter|node mirror`. Scopes do not overlap.
 
 ```sh
 sdkvm mirror ls
 sdkvm mirror use nju
 sdkvm go mirror use aliyun
-sdkvm flutter mirror use tuna
-sdkvm node mirror use huawei
-sdkvm go mirror use official
+sdkvm node mirror use official   # restore official source for that type
 ```
 
 | Action | Meaning |
 |---|---|
-| `ls` | List built-in sites that cover this SDK type; `*` marks current |
-| `use <site>` | Switch to that site's mirror root for this type only |
-| `current` | Print the matched site name and per-vendor URLs for this type |
-| `show` | Print the current mirrors (with `ls` / `use` hints) |
-| `set [vendor] <url>` | Write a hand-entered URL into the config file |
-| `unset [vendor]` | Return to the official source |
+| `ls` / `current` / `show` | List sites and show the current config for this type |
+| `use <site>` | Switch to a built-in site (`nju` / `tuna` / `aliyun` / `huawei` / `official`) |
+| `set [vendor] <url>` / `unset` | Set or clear a raw URL |
+
+Coverage and hand-entered URLs: [Mirrors and npm registry](#mirrors-and-npm-registry).
 
 ### `sdkvm nrm`
 
-Manage the user-level npm registry (where `npm install` fetches packages). The UX follows [nrm](https://github.com/Pana/nrm). This is separate from `mirror` above (SDK install archives).
+Manages the user-level **npm registry** (where `npm install` fetches packages). The UX follows [nrm](https://github.com/Pana/nrm). Independent of `mirror`.
 
 ```sh
 sdkvm nrm ls
-sdkvm nrm current
 sdkvm nrm use taobao
 sdkvm nrm use npm
 sdkvm nrm add myprivate http://xxx/registry
 sdkvm nrm del myprivate
 sdkvm nrm test
-sdkvm nrm test taobao
 ```
-
-| Command | Meaning |
-|---|---|
-| `ls` | List built-in and custom registries; `*` marks current |
-| `current` | Print the current registry name and URL |
-| `use <name>` | Switch the user-level registry (`npm config set … --location=user`) |
-| `add <name> <url>` | Add a custom registry to `~/.sdkvm/config.json` |
-| `del <name>` | Delete a custom registry (built-ins cannot be removed) |
-| `test [name]` | Ping registries for latency; omit name to test all |
 
 Built-in names: `npm`, `yarn`, `taobao` (alias `npmmirror`), `tencent`, `cnpm`, `huawei`, `npmMirror`. `npm` must be on `PATH`.
 
@@ -436,11 +430,21 @@ Path: `~/.sdkvm/config.json`. A corrupt file is renamed to `config.json.bak` and
 | `SDKVM_RELEASE_BASE` | GitHub Release root used by the install script and `sdkvm upgrade` |
 | `SDKVM_RUNTIME_NODE` | Node version bundled by the install script. Default `22.20.0` |
 
-Mirror precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official source.
+Mirror precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official source. See [Mirrors and npm registry](#mirrors-and-npm-registry).
 
-## Mirrors
+## Mirrors and npm registry
 
-Temurin downloads from GitHub by default, Go from go.dev, and Flutter from `storage.googleapis.com`. Prefer a built-in site per SDK type:
+Two independent features:
+
+| | `sdkvm mirror` | `sdkvm nrm` |
+|---|---|---|
+| Changes | JDK / Go / Flutter / Node **install archive** URLs | **npm package** registry |
+| Affects | `sdkvm … install` | `npm install` |
+| Scope | Per SDK type | User-level global |
+
+### SDK install mirrors
+
+Prefer a built-in site per type (`use` only writes vendors for the current type; aliases: `tsinghua`→`tuna`, `ali`→`aliyun`):
 
 ```sh
 sdkvm mirror use nju
@@ -448,8 +452,6 @@ sdkvm go mirror use nju
 sdkvm flutter mirror use nju
 sdkvm node mirror use nju
 ```
-
-Built-in sites and coverage (`use` only writes vendors for the current SDK type; aliases: `tsinghua`→`tuna`, `ali`→`aliyun`):
 
 | Site | Java (temurin) | Go | Flutter | Node.js |
 |---|---|---|---|---|
@@ -459,28 +461,30 @@ Built-in sites and coverage (`use` only writes vendors for the current SDK type;
 | `huawei` | — | — | — | ✓ |
 | `official` | Clear this type | Clear this type | Clear this type | Clear this type |
 
-You can still set a raw URL:
+Raw URL or one-shot override:
 
 ```sh
-sdkvm mirror set temurin https://mirrors.nju.edu.cn/adoptium
 sdkvm go mirror set golang https://golang.google.cn/dl
-```
-
-A one-shot override that is not saved:
-
-```sh
 SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 ```
 
-A mirror replaces the archive URL only. Version metadata and checksums always come from the official API.
+Precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official. A mirror replaces the archive URL only; metadata and checksums still come from the official API. If a mirrored download cannot fetch the official checksum source, install **fails hard**.
 
-| Vendor | Mirror form | Notes |
-|---|---|---|
-| Temurin | Adoptium directory layout | Verified against [NJU](https://mirrors.nju.edu.cn/adoptium) and [TUNA](https://mirrors.tuna.tsinghua.edu.cn/Adoptium) |
-| Go | File name appended to the root URL | e.g. `nju` / `aliyun`, or hand-set `https://golang.google.cn/dl` |
-| Flutter | Bucket-prefix replacement | Verified against [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release). Do not use `storage.flutter-io.cn`; it has no release manifest |
-| Node.js | Prefix replacement | Verified against [NJU](https://mirror.nju.edu.cn/nodejs-release). The TUNA nodejs-release mirror is missing archives |
-| Zulu, Corretto | — | Served from the official CDN. No mirror support yet |
+| Vendor | Notes |
+|---|---|
+| Temurin | Adoptium layout; verified against [NJU](https://mirrors.nju.edu.cn/adoptium) and [TUNA](https://mirrors.tuna.tsinghua.edu.cn/Adoptium) |
+| Go | File name appended to the root; e.g. `nju` / `aliyun` |
+| Flutter | Bucket-prefix replacement; verified against [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release). Do not use `storage.flutter-io.cn` |
+| Node.js | Prefix replacement; verified against [NJU](https://mirror.nju.edu.cn/nodejs-release). Do not use TUNA nodejs-release |
+| Zulu, Corretto | Official CDN only; no mirror support yet |
+
+### npm registry
+
+```sh
+sdkvm nrm use taobao   # common in China
+sdkvm nrm use npm      # official
+sdkvm nrm test         # latency
+```
 
 ## Security
 
@@ -495,18 +499,25 @@ A mirror replaces the archive URL only. Version metadata and checksums always co
 
 The rc block applies in a new terminal, or after `source ~/.zshrc`. Restart the IDE. `sdkvm current` shows whether the link already moved. On Windows the registry is updated, but an open terminal keeps the old values.
 
+### `GOROOT` / `FLUTTER_ROOT` were renamed
+
+They are now `GO_HOME` and `FLUTTER_HOME` (aligned with `JAVA_HOME` / `NODE_HOME`). After upgrading the CLI, run `use` again for each enabled SDK, and remove leftover old variable names from the user environment (Windows registry / hand-edited rc lines).
+
 ### fish or nushell
 
 Automatic rc writes support zsh and bash. Translate the blocks in [Switching](#switching). fish example:
 
 ```fish
 set -gx JAVA_HOME $HOME/.sdkvm/current-java
-fish_add_path $JAVA_HOME/bin
+set -gx GO_HOME $HOME/.sdkvm/current-go
+set -gx FLUTTER_HOME $HOME/.sdkvm/current-flutter
+set -gx NODE_HOME $HOME/.sdkvm/current-node
+fish_add_path $JAVA_HOME/bin $GO_HOME/bin $FLUTTER_HOME/bin $NODE_HOME/bin
 ```
 
 ### Flutter downloads are slow or they stop
 
-Set a mirror first. The timeout is 60 seconds with no data, so a steady slow transfer continues. Re-run `install` after a real interruption. Nothing partial is left behind.
+Run `sdkvm flutter mirror use nju` (or `tuna`) first. The timeout is 60 seconds with no data, so a steady slow transfer continues. Re-run `install` after a real interruption. Nothing partial is left behind.
 
 ### Install a Flutter beta
 
@@ -518,7 +529,7 @@ A script install launches the CLI with `~/.sdkvm/runtime`, so `sdkvm node use` d
 
 ### What is the difference between `nrm` and `mirror`?
 
-`sdkvm nrm` changes the npm package registry (affects `npm install`). `sdkvm mirror` changes download URLs for JDK / Go / Flutter / Node install archives. They are independent.
+See [Mirrors and npm registry](#mirrors-and-npm-registry): `nrm` is for npm packages; `mirror` is for SDK install archives.
 
 ### Proxies
 

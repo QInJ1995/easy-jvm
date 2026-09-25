@@ -27,7 +27,7 @@
 - [版本语法](#版本语法)
 - [工作原理](#工作原理)
 - [配置](#配置)
-- [镜像加速](#镜像加速)
+- [镜像与 npm 源](#镜像与-npm-源)
 - [安全性](#安全性)
 - [常见问题](#常见问题)
 - [卸载](#卸载)
@@ -116,7 +116,7 @@ SDKVM_RELEASE_BASE=https://github.com/QInJ1995/sdkvm/releases \
 
 ```console
 $ sdkvm version
-1.0.0
+1.0.1
 ```
 
 ## 升级
@@ -130,8 +130,17 @@ $ sdkvm version
 
 ## 快速开始
 
+Java 可用裸命令（与 `sdkvm java` 等价）；Go / Flutter / Node 用子命令。
+
 ```sh
-# Java（裸命令与 sdkvm java 等价）
+# 可选：国内加速（按 SDK 类型分别设置，互不影响）
+sdkvm mirror use nju          # Java Temurin
+sdkvm go mirror use nju
+sdkvm flutter mirror use nju
+sdkvm node mirror use nju
+sdkvm nrm use taobao          # 仅影响 npm install，与上面的 mirror 无关
+
+# Java
 sdkvm install lts
 sdkvm use 25
 java -version
@@ -141,7 +150,7 @@ sdkvm go install 1.24
 sdkvm go use 1.24
 go version
 
-# Flutter（stable 通道）
+# Flutter（stable）
 sdkvm flutter install 3.47
 sdkvm flutter use 3.47
 flutter --version
@@ -157,13 +166,12 @@ sdkvm java install 21 --vendor zulu
 sdkvm java use zulu-21
 sdkvm ls
 sdkvm go ls
-sdkvm flutter ls
-sdkvm node ls
 sdkvm uninstall zulu-21
-sdkvm go uninstall 1.24
 ```
 
-首次 `use` 之后需要重开终端，或在 macOS / Linux 上 `source` 对应的 rc 文件。
+首次 `use` 后请**重开终端**，或在 macOS / Linux 上 `source ~/.zshrc`（bash 则 source 对应 rc）。IDE 需重启才会读到新的环境变量。
+
+日常只记三条：`install` → `use` → `current` / `ls`。镜像与 npm 源见[镜像与 npm 源](#镜像与-npm-源)。
 
 ## 命令参考
 
@@ -273,51 +281,37 @@ node: nodejs-22.20.0
 
 ### `sdkvm mirror`
 
-Java 用 `sdkvm mirror`，其余用 `sdkvm go mirror`、`sdkvm flutter mirror`、`sdkvm node mirror`。**按 SDK 类型作用域互不影响**。详见[镜像加速](#镜像加速)。
+按 SDK 类型管理**安装包下载镜像**（不是 npm 包源）。Java：`sdkvm mirror`；其余：`sdkvm go|flutter|node mirror`。作用域互不影响。
 
 ```sh
 sdkvm mirror ls
 sdkvm mirror use nju
 sdkvm go mirror use aliyun
-sdkvm flutter mirror use tuna
-sdkvm node mirror use huawei
-sdkvm go mirror use official
+sdkvm node mirror use official   # 恢复该类型官方源
 ```
 
 | 动作 | 说明 |
 |---|---|
-| `ls` | 列出对本类型有覆盖的内置镜像站，`*` 标当前 |
-| `use <site>` | 切换到该站对本类型的镜像根（只写本类型 vendor） |
-| `current` | 打印命中站名与本类型各 vendor URL |
-| `show` | 查看当前镜像（含 `ls` / `use` 提示） |
-| `set [vendor] <url>` | 手填 URL 写入配置 |
-| `unset [vendor]` | 恢复官方源 |
+| `ls` / `current` / `show` | 查看本类型可用站与当前配置 |
+| `use <site>` | 一键切换内置站（`nju` / `tuna` / `aliyun` / `huawei` / `official`） |
+| `set [vendor] <url>` / `unset` | 手填或清除 URL |
+
+站点覆盖与手填示例见[镜像与 npm 源](#镜像与-npm-源)。
 
 ### `sdkvm nrm`
 
-管理用户级 npm registry（`npm install` 拉包的地址），风格接近 [nrm](https://github.com/Pana/nrm)。与上面的 `mirror`（SDK 安装包下载）无关。
+管理用户级 **npm registry**（`npm install` 拉包地址），风格接近 [nrm](https://github.com/Pana/nrm)。与 `mirror` 无关。
 
 ```sh
 sdkvm nrm ls
-sdkvm nrm current
 sdkvm nrm use taobao
 sdkvm nrm use npm
 sdkvm nrm add myprivate http://xxx/registry
 sdkvm nrm del myprivate
 sdkvm nrm test
-sdkvm nrm test taobao
 ```
 
-| 命令 | 说明 |
-|---|---|
-| `ls` | 列出内置源与自定义源，`*` 标当前 |
-| `current` | 打印当前 registry 名称与 URL |
-| `use <name>` | 切换用户级 registry（`npm config set … --location=user`） |
-| `add <name> <url>` | 添加自定义源，写入 `~/.sdkvm/config.json` |
-| `del <name>` | 删除自定义源（不能删内置名） |
-| `test [name]` | 探测延迟；省略 name 则测全部 |
-
-内置名：`npm`、`yarn`、`taobao`（别名 `npmmirror`）、`tencent`、`cnpm`、`huawei`、`npmMirror`。需要本机 PATH 上已有 `npm`。
+内置名：`npm`、`yarn`、`taobao`（别名 `npmmirror`）、`tencent`、`cnpm`、`huawei`、`npmMirror`。需要 PATH 上已有 `npm`。
 
 ## 版本语法
 
@@ -436,11 +430,21 @@ Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变�
 | `SDKVM_RELEASE_BASE` | 安装脚本与 `sdkvm upgrade` 使用的 GitHub Release 根 URL |
 | `SDKVM_RUNTIME_NODE` | 安装脚本内置的 Node 版本，默认 `22.20.0` |
 
-镜像优先级：`SDKVM_MIRROR` > `config.mirror[<vendor>]` > 官方源。
+镜像优先级：`SDKVM_MIRROR` > `config.mirror[<vendor>]` > 官方源。详见[镜像与 npm 源](#镜像与-npm-源)。
 
-## 镜像加速
+## 镜像与 npm 源
 
-Temurin 默认从 GitHub 下载，Go 默认从 go.dev，Flutter 默认从 `storage.googleapis.com`。推荐按类型选用内置镜像站：
+两套独立能力，不要混用：
+
+| | `sdkvm mirror` | `sdkvm nrm` |
+|---|---|---|
+| 改什么 | JDK / Go / Flutter / Node **安装包**下载地址 | **npm 包** registry |
+| 影响 | `sdkvm … install` | `npm install` |
+| 作用域 | 按 SDK 类型分别设置 | 用户级全局 |
+
+### SDK 安装包镜像
+
+推荐按类型选用内置站（`use` 只写当前类型对应的 vendor；别名：`tsinghua`→`tuna`，`ali`→`aliyun`）：
 
 ```sh
 sdkvm mirror use nju
@@ -448,8 +452,6 @@ sdkvm go mirror use nju
 sdkvm flutter mirror use nju
 sdkvm node mirror use nju
 ```
-
-内置站与覆盖（`use` 只写当前 SDK 类型对应的 vendor；别名：`tsinghua`→`tuna`，`ali`→`aliyun`）：
 
 | 站点 | Java (temurin) | Go | Flutter | Node.js |
 |---|---|---|---|---|
@@ -459,28 +461,30 @@ sdkvm node mirror use nju
 | `huawei` | — | — | — | ✓ |
 | `official` | 清空本类型 | 清空本类型 | 清空本类型 | 清空本类型 |
 
-仍可手填 URL：
+手填 URL 或临时覆盖：
 
 ```sh
-sdkvm mirror set temurin https://mirrors.nju.edu.cn/adoptium
 sdkvm go mirror set golang https://golang.google.cn/dl
-```
-
-临时指定、不写入配置：
-
-```sh
 SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 ```
 
-镜像只替换归档下载地址。版本元数据和校验和始终走官方 API。
+优先级：`SDKVM_MIRROR` > `config.mirror[<vendor>]` > 官方源。镜像只替换归档下载地址；版本元数据与校验和仍走官方 API。走镜像时若官方校验源不可达，安装会**硬失败**（避免无法核对的包被放行）。
 
-| 厂商 | 镜像写法 | 说明 |
-|---|---|---|
-| Temurin | Adoptium 目录结构 | 已验证 [NJU](https://mirrors.nju.edu.cn/adoptium)、[TUNA](https://mirrors.tuna.tsinghua.edu.cn/Adoptium) |
-| Go | 文件名直接拼在根 URL 后 | 如 `nju` / `aliyun`，或手填 `https://golang.google.cn/dl` |
-| Flutter | 桶前缀替换 | 已验证 [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release)。`storage.flutter-io.cn` 没有发布清单，不要使用 |
-| Node.js | 前缀替换 | 已验证 [NJU](https://mirror.nju.edu.cn/nodejs-release)。TUNA 的 nodejs-release 缺少归档，不要使用 |
-| Zulu、Corretto | — | 官方 CDN 直发，暂不支持镜像 |
+| 厂商 | 说明 |
+|---|---|
+| Temurin | Adoptium 目录结构；已验证 [NJU](https://mirrors.nju.edu.cn/adoptium)、[TUNA](https://mirrors.tuna.tsinghua.edu.cn/Adoptium) |
+| Go | 文件名拼在根 URL 后；如 `nju` / `aliyun` |
+| Flutter | 桶前缀替换；已验证 [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release)。不要用 `storage.flutter-io.cn`（无发布清单） |
+| Node.js | 前缀替换；已验证 [NJU](https://mirror.nju.edu.cn/nodejs-release)。不要用 TUNA nodejs-release（缺归档） |
+| Zulu、Corretto | 官方 CDN 直发，暂不支持镜像 |
+
+### npm registry
+
+```sh
+sdkvm nrm use taobao   # 国内常用
+sdkvm nrm use npm      # 恢复官方
+sdkvm nrm test         # 测延迟
+```
 
 ## 安全性
 
@@ -495,18 +499,25 @@ SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 
 rc 块在新终端或 `source ~/.zshrc` 之后生效。IDE 需要重启。先用 `sdkvm current` 确认链接已经切换。Windows 上注册表已更新，已打开的终端读不到新值。
 
+### 环境变量从 `GOROOT` / `FLUTTER_ROOT` 改名了
+
+现在统一为 `GO_HOME`、`FLUTTER_HOME`（与 `JAVA_HOME` / `NODE_HOME` 对齐）。升级 CLI 后请对已启用的 SDK 再执行一次 `use`，并删除用户环境里残留的旧变量名（Windows 注册表 / 旧 rc 手工行）。
+
 ### fish 或 nushell
 
-自动写入只支持 zsh 和 bash。把[切换机制](#切换机制)里的块改写成对应语法。fish 示例：
+自动写入只支持 zsh 和 bash。按[切换机制](#切换机制)改写成对应语法。fish 示例：
 
 ```fish
 set -gx JAVA_HOME $HOME/.sdkvm/current-java
-fish_add_path $JAVA_HOME/bin
+set -gx GO_HOME $HOME/.sdkvm/current-go
+set -gx FLUTTER_HOME $HOME/.sdkvm/current-flutter
+set -gx NODE_HOME $HOME/.sdkvm/current-node
+fish_add_path $JAVA_HOME/bin $GO_HOME/bin $FLUTTER_HOME/bin $NODE_HOME/bin
 ```
 
 ### Flutter 下载慢或中断
 
-先配置镜像。超时条件是 60 秒没有数据，稳定的慢速不会中断。中断后直接重跑 `install`，不会留下半成品。
+先 `sdkvm flutter mirror use nju`（或 `tuna`）。超时条件是 60 秒没有数据，稳定的慢速不会中断。中断后直接重跑 `install`，不会留下半成品。
 
 ### 安装 Flutter beta
 
@@ -518,7 +529,7 @@ fish_add_path $JAVA_HOME/bin
 
 ### `nrm` 和 `mirror` 有什么区别
 
-`sdkvm nrm` 改的是 npm 包 registry（影响 `npm install`）。`sdkvm mirror` 改的是 JDK / Go / Flutter / Node 安装包的下载地址。两者独立。
+见[镜像与 npm 源](#镜像与-npm-源)：`nrm` 管 npm 拉包，`mirror` 管 SDK 安装包下载。
 
 ### 代理
 

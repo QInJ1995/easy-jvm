@@ -459,16 +459,6 @@ fish_add_path $JAVA_HOME/bin
 
 当前不读取 `HTTPS_PROXY`。可以使用系统级透明代理。
 
-### 从旧版 `~/.jvm` 迁过来
-
-本工具不再自动迁移。若仍有 `~/.jvm` 数据，可手工：
-
-```sh
-mv ~/.jvm ~/.sdkvm
-```
-
-然后删掉 shell 里旧的 `# >>> jvm init >>>` 块，再执行一次 `sdkvm use <version>` 写入新的 rc / 环境变量。Windows 同理：确认数据在 `%USERPROFILE%\.sdkvm` 后重跑 `use`。
-
 ### CI 或多用户隔离
 
 设置 `SDKVM_HOME=/path/to/dir`。安装、链接和配置都跟随该目录。

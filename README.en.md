@@ -459,16 +459,6 @@ A script install launches the CLI with `~/.sdkvm/runtime`, so `sdkvm node use` d
 
 `HTTPS_PROXY` is not read. A transparent system proxy works.
 
-### Migrating from a legacy `~/.jvm`
-
-Automatic migration was removed. If you still have `~/.jvm` data:
-
-```sh
-mv ~/.jvm ~/.sdkvm
-```
-
-Then delete any `# >>> jvm init >>>` blocks from your shell rc and run `sdkvm use <version>` once to write the new rc / environment entries. On Windows, move the data under `%USERPROFILE%\.sdkvm` and re-run `use`.
-
 ### Isolate data for CI or multiple users
 
 Set `SDKVM_HOME=/path/to/dir`. Installs, links, and config all follow that directory.

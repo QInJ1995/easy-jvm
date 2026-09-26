@@ -97,7 +97,7 @@ Then open a new terminal, or `source` the rc file, and check:
 
 ```console
 $ sdkvm version
-1.0.2
+1.0.3
 ```
 
 To use a custom data root, **pass `SDKVM_HOME` on the install command itself** (`curl | sh` does not read `~/.zshrc`):

@@ -17,6 +17,10 @@ import {
   formatNodeVersion,
   parseNodeDirName,
   parseNodeUserSpec,
+  parseMavenVersion,
+  formatMavenVersion,
+  parseMavenDirName,
+  parseMavenUserSpec,
 } from '../src/core/version.js';
 import { SdkvmError } from '../src/util/errors.js';
 
@@ -258,5 +262,46 @@ describe('node version parsing', () => {
     expect(formatNodeVersion(v as never)).toBe('22.20.0');
     expect(parseNodeDirName('node-22.20.0')).toBeNull();
     expect(parseNodeDirName('golang-1.24.5')).toBeNull();
+  });
+});
+
+describe('maven version parsing', () => {
+  it('parses maven-/v prefixes and prerelease extra', () => {
+    expect(parseMavenVersion('maven', 'maven-3.9.9')).toMatchObject({ major: 3, minor: 9, patch: 9, extra: null });
+    const pre = parseMavenVersion('maven', 'v4.0.0-rc-4');
+    expect(pre.extra).toBe('rc-4');
+    expect(formatMavenVersion(pre)).toBe('4.0.0-rc-4');
+    expect(formatMavenVersion(parseMavenVersion('maven', '3.9.9'))).toBe('3.9.9');
+  });
+
+  it('user spec: major / line / full / prerelease / latest / vendor prefix', () => {
+    expect(parseMavenUserSpec('3')).toEqual({ spec: { kind: 'major', major: 3 } });
+    expect(parseMavenUserSpec('3.9')).toEqual({ spec: { kind: 'line', major: 3, minor: 9 } });
+    expect(parseMavenUserSpec('3.9.9')).toEqual({ spec: { kind: 'full', version: '3.9.9' } });
+    expect(parseMavenUserSpec('4.0.0-rc-4')).toEqual({ spec: { kind: 'full', version: '4.0.0-rc-4' } });
+    expect(parseMavenUserSpec('3.9.9-rc-1')).toEqual({ spec: { kind: 'full', version: '3.9.9-rc-1' } });
+    expect(parseMavenUserSpec('latest')).toEqual({ spec: { kind: 'latest' } });
+    expect(parseMavenUserSpec('maven-3.9.9')).toEqual({
+      vendor: 'maven',
+      spec: { kind: 'full', version: '3.9.9' },
+    });
+  });
+
+  it('user spec: lts is rejected', () => {
+    let hint: string | undefined;
+    try {
+      parseMavenUserSpec('lts');
+    } catch (err) {
+      hint = (err as SdkvmError).hint;
+    }
+    expect(hint).toMatch(/no lts/);
+  });
+
+  it('dir name parse round-trip', () => {
+    const v = parseMavenDirName('maven-4.0.0-rc-4');
+    expect(v?.vendor).toBe('maven');
+    expect(formatMavenVersion(v as never)).toBe('4.0.0-rc-4');
+    expect(parseMavenDirName('nodejs-22.20.0')).toBeNull();
+    expect(parseMavenDirName('maven-3')).toBeNull();
   });
 });

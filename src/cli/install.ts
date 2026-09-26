@@ -8,9 +8,9 @@ import { envGet } from '../core/env.js';
 import { getSdkType } from '../sdk/index.js';
 import type { SdkTypeId } from '../sdk/types.js';
 import { getVendor, resolveVendorId } from '../vendor/index.js';
-import { applyMirrorDetail, MIRROR_REWRITE_VENDORS } from '../vendor/mirror.js';
+import { applyMirrorDetail, checksumSidecarFallback, MIRROR_REWRITE_VENDORS } from '../vendor/mirror.js';
 import { downloadFile, cacheFileName } from '../net/download.js';
-import { verifyChecksum } from '../net/checksum.js';
+import { hashFile, verifyChecksum } from '../net/checksum.js';
 import { extractArchive, tmpExtractDir } from '../fs/extract.js';
 import { normalizeExtracted } from '../fs/layout.js';
 import { log } from '../ui/log.js';
@@ -59,7 +59,7 @@ export async function installCommand(
   }
 
   const finalDir = path.join(paths.sdks(type), artifact.dirName);
-  // java/node：major；go/flutter：minor 线（1.24 / 3.47）。node 不接受 major.minor。
+  // java/node：major；go/flutter/maven：minor 线（1.24 / 3.47 / 3.9）。node 不接受 major.minor。
   const hintVersion =
     type === 'java' || type === 'node'
       ? String(artifact.version.major)
@@ -87,7 +87,12 @@ export async function installCommand(
     const dl = await downloadFile(artifact.downloadUrl, dest, (b, t) => progress.update(b, t));
     progress.done(dl.bytes, null);
 
-    await verifyChecksum(artifact, dl.sha256, { strict: applied });
+    const actual =
+      artifact.checksum?.kind === 'sha512' ? await hashFile(dest, 'sha512') : dl.sha256;
+    const fallbackUrl = applied
+      ? checksumSidecarFallback(resolved.downloadUrl, resolved.checksum?.url, artifact.downloadUrl)
+      : undefined;
+    await verifyChecksum(artifact, actual, { strict: applied, fallbackUrl });
 
     const tmp = tmpExtractDir(paths.tmp());
     const bak = `${finalDir}.bak`;

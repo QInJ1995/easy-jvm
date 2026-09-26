@@ -70,6 +70,9 @@ describe('mirror presets', () => {
 
     const node = listMirrorSitesForType('node').map((s) => s.name);
     expect(node).toEqual(['nju', 'aliyun', 'huawei', 'official']);
+
+    const maven = listMirrorSitesForType('maven').map((s) => s.name);
+    expect(maven).toEqual(['aliyun', 'huawei', 'official']);
   });
 
   it('scopes vendor URLs per type', () => {
@@ -169,6 +172,13 @@ describe('mirrorCommand use / ls / current', () => {
     expect(lines.some((l) => l.startsWith('* custom') && l.includes('golang.google.cn'))).toBe(
       true,
     );
+  });
+
+  it('use aliyun on maven writes the Central root', () => {
+    mirrorCommand('maven', 'use', 'aliyun', undefined);
+    expect(loadConfig().mirror.maven).toBe('https://maven.aliyun.com/repository/central');
+    expect(loadConfig().mirror.maven).not.toContain('mirrors.aliyun.com/apache');
+    expect(loadConfig().mirror.nodejs).toBeUndefined();
   });
 
   it('current prints site name', () => {

@@ -17,25 +17,33 @@ const program = new Command();
 
 program
   .name('sdkvm')
-  .description('SDK version manager — install & switch JDKs (Temurin / Zulu / Corretto), Go toolchains, Flutter SDKs, and Node.js runtimes')
+  .description('SDK version manager — install & switch JDKs (Temurin / Zulu / Corretto), Go toolchains, Flutter SDKs, Node.js runtimes, and Apache Maven')
   .version(getVersion());
+
+const INSTALL_HELP: Record<SdkTypeId, string> = {
+  java: '21 | lts | 21.0.5 | 21.0.5+11 | temurin-21',
+  go: '1.24 | 1.24.5 | latest | golang-1.24',
+  flutter: '3.47 | 3.47.5 | 3.49.0-0.1.pre | latest | flutter-3.47',
+  node: '22 | 22.20.0 | lts | latest | nodejs-22.20.0',
+  maven: '3 | 3.9 | 3.9.9 | 4.0.0-rc-4 | latest | maven-3.9',
+};
+
+const VERSION_EXAMPLE: Record<SdkTypeId, string> = {
+  java: '21 / temurin-21.0.5+11',
+  go: '1.24 / golang-1.24.5',
+  flutter: '3.47 / flutter-3.47.5',
+  node: '22 / nodejs-22.20.0',
+  maven: '3.9 / maven-3.9.9',
+};
 
 /** 某类型的一组命令（install/use/ls/uninstall/mirror）挂到给定 commander 节点上 */
 function registerSdkCommands(cmd: Command, type: SdkTypeId): void {
   const s = getSdkType(type);
-  const isJava = type === 'java';
-  const installHelp = isJava
-    ? '21 | lts | 21.0.5 | 21.0.5+11 | temurin-21'
-    : type === 'go'
-      ? '1.24 | 1.24.5 | latest | golang-1.24'
-      : type === 'flutter'
-        ? '3.47 | 3.47.5 | 3.49.0-0.1.pre | latest | flutter-3.47'
-        : '22 | 22.20.0 | lts | latest | nodejs-22.20.0';
   const vendorIds = s.vendors.map((v) => v.id).join(' | ');
 
   cmd
     .command('install')
-    .description(`install a ${s.label}: ${installHelp}`)
+    .description(`install a ${s.label}: ${INSTALL_HELP[type]}`)
     .argument('<version>', 'version spec (optional vendor- prefix)')
     .option('--vendor <id>', `vendor: ${vendorIds}`)
     .option('--force', 'reinstall even if already installed')
@@ -44,7 +52,7 @@ function registerSdkCommands(cmd: Command, type: SdkTypeId): void {
   cmd
     .command('use')
     .description(`switch the current ${s.label} (updates ${s.envVar} / PATH)`)
-    .argument('<version>', `installed version, e.g. ${isJava ? '21 / temurin-21.0.5+11' : type === 'go' ? '1.24 / golang-1.24.5' : type === 'flutter' ? '3.47 / flutter-3.47.5' : '22 / nodejs-22.20.0'}`)
+    .argument('<version>', `installed version, e.g. ${VERSION_EXAMPLE[type]}`)
     .option('--vendor <id>', 'restrict matching to a vendor')
     .action((v: string, o: { vendor?: string }) => useCommand(type, v, o));
 
@@ -64,7 +72,7 @@ function registerSdkCommands(cmd: Command, type: SdkTypeId): void {
   cmd
     .command('uninstall')
     .description(`remove an installed ${s.label}`)
-    .argument('<version>', `installed version, e.g. ${isJava ? '21 / temurin-21.0.5+11' : type === 'go' ? '1.24 / golang-1.24.5' : type === 'flutter' ? '3.47 / flutter-3.47.5' : '22 / nodejs-22.20.0'}`)
+    .argument('<version>', `installed version, e.g. ${VERSION_EXAMPLE[type]}`)
     .option('--vendor <id>', 'restrict matching to a vendor')
     .action((v: string, o: { vendor?: string }) => uninstallCommand(type, v, o));
 
@@ -82,7 +90,7 @@ function registerSdkCommands(cmd: Command, type: SdkTypeId): void {
 // 裸命令 = java（历史行为，向后兼容）
 registerSdkCommands(program, 'java');
 
-// java / go / flutter / node 子命令组
+// java / go / flutter / node / maven 子命令组
 const javaCmd = program.command('java').description('Java (JDK) subcommands (same as the bare commands)');
 registerSdkCommands(javaCmd, 'java');
 javaCmd.action(() => javaCmd.help());
@@ -98,6 +106,10 @@ flutterCmd.action(() => flutterCmd.help());
 const nodeCmd = program.command('node').description('Node.js subcommands');
 registerSdkCommands(nodeCmd, 'node');
 nodeCmd.action(() => nodeCmd.help());
+
+const mavenCmd = program.command('maven').description('Apache Maven subcommands');
+registerSdkCommands(mavenCmd, 'maven');
+mavenCmd.action(() => mavenCmd.help());
 
 // 裸 current 显示全部类型
 program.commands.find((c) => c.name() === 'current')?.action(() => currentCommand());

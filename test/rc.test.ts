@@ -86,9 +86,20 @@ describe('node rc block', () => {
   });
 });
 
+describe('maven rc block', () => {
+  it('exports MAVEN_HOME pointing at current-maven', () => {
+    const block = rcBlock('maven');
+    expect(block).toContain('MAVEN_HOME=');
+    expect(block).toContain('current-maven');
+    expect(block).toContain('case ":$PATH:"');
+    expect(block).toContain('"$HOME/.sdkvm/current-maven"');
+    expect(block).not.toContain('M2_HOME');
+  });
+});
+
 describe('rc separator safety', () => {
   it('no backslash separators in any block (shell syntax)', () => {
-    for (const t of ['java', 'go', 'flutter', 'node'] as const) {
+    for (const t of ['java', 'go', 'flutter', 'node', 'maven'] as const) {
       expect(rcBlock(t)).not.toMatch(/\\/);
     }
   });

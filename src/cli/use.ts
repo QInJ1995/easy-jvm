@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import path from 'node:path';
 import { detectPlatform, type Platform } from '../core/platform.js';
+import { envGet } from '../core/env.js';
 import { withLock } from '../core/lock.js';
 import { findInstalled } from '../core/registry.js';
 import { setCurrent } from '../fs/link.js';
@@ -11,6 +12,7 @@ import { detectRcFile } from '../shell/detect.js';
 import { rcBlock, upsertRcFile } from '../shell/rc.js';
 import { ensureUserPathWin, setSdkEnvWin, sdkPathEntry } from '../shell/winenv.js';
 import { log } from '../ui/log.js';
+import { CLI_BIN } from './cmdname.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -58,6 +60,9 @@ export async function useCommand(
       log.warn('could not detect your shell; add this to your rc file manually:');
       console.log(rcBlock(type));
     }
+  }
+  if (spec.requiresJdk && !envGet('JAVA_HOME')) {
+    log.warn(`${spec.label} needs a JDK. Run: ${CLI_BIN} java use <version>`);
   }
   await showSdkVersion(path.join(installed.home, spec.binRelPath(platform)), type);
 }

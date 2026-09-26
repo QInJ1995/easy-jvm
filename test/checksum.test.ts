@@ -51,6 +51,12 @@ describe('extractExpectedChecksum', () => {
     ).toBe(hash);
   });
 
+  it('reads a sha512 sidecar line', () => {
+    const hash = 'ab'.repeat(64);
+    expect(extractExpectedChecksum(`${hash}  apache-maven-3.9.9-bin.tar.gz\n`, 'sha512')).toBe(hash);
+    expect(extractExpectedChecksum(`${hash}\n`, 'sha256')).toBeNull();
+  });
+
   it('returns null when the JSON has no hash', () => {
     expect(extractExpectedChecksum(JSON.stringify({ vendor: 'Eclipse Adoptium' }))).toBeNull();
     expect(extractExpectedChecksum('{')).toBeNull();
@@ -104,6 +110,56 @@ describe('verifyChecksum', () => {
       art({ checksum: { kind: 'sha256', expected: 'ab'.repeat(32) } }),
       'AB'.repeat(32),
     );
+  });
+
+  it('strict mode uses the mirror sidecar when the official checksum URL fails', async () => {
+    const hash = 'ab'.repeat(64);
+    const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL | Request) => {
+        const u = String(url);
+        if (u.includes('repo.maven.apache.org')) throw new Error('network down');
+        if (u.includes('maven.aliyun.com')) return new Response(`${hash}  file.tar.gz\n`);
+        throw new Error(`unexpected ${u}`);
+      }),
+    );
+    await verifyChecksum(
+      art({
+        displayName: 'Apache Maven 3.9.9',
+        checksum: {
+          kind: 'sha512',
+          url: 'https://repo.maven.apache.org/maven2/apache-maven-3.9.9-bin.tar.gz.sha512',
+        },
+      }),
+      hash,
+      {
+        strict: true,
+        fallbackUrl: 'https://maven.aliyun.com/repository/central/apache-maven-3.9.9-bin.tar.gz.sha512',
+      },
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('mirror sidecar'));
+  });
+
+  it('strict mode still fails when official and mirror checksum URLs both fail', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('network down');
+      }),
+    );
+    await expect(
+      verifyChecksum(
+        art({
+          checksum: { kind: 'sha512', url: 'https://repo.maven.apache.org/maven2/a.tar.gz.sha512' },
+        }),
+        'ab'.repeat(64),
+        { strict: true, fallbackUrl: 'https://maven.aliyun.com/repository/central/a.tar.gz.sha512' },
+      ),
+    ).rejects.toMatchObject({
+      message: expect.stringMatching(/Cannot fetch checksum/),
+      hint: expect.stringMatching(/both unreachable/),
+    });
   });
 
   it('mismatch always fails', async () => {

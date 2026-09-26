@@ -23,8 +23,11 @@ export interface ResolvedArtifact {
   /** 展示名，如 "Temurin 21.0.5+11" */
   displayName: string;
   downloadUrl: string;
-  /** sha256 校验信息；尽力校验，缺失时 warn 放行 */
-  checksum: { kind: 'sha256'; url?: string; expected?: string } | null;
+  /**
+   * 校验信息；尽力校验，缺失时 warn 放行。
+   * sha256：Go / Flutter / Node / Java。sha512：Maven Central 的 .sha512 旁路文件。
+   */
+  checksum: { kind: 'sha256' | 'sha512'; url?: string; expected?: string } | null;
   archive: 'tar.gz' | 'tar.xz' | 'zip';
 }
 

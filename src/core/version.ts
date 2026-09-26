@@ -336,3 +336,74 @@ export function parseNodeUserSpec(input: string): UserSpec {
     hint: 'Expected: 22, 22.20.0, lts, latest, or with vendor prefix like nodejs-22.20.0',
   });
 }
+
+// —— maven 解析 ——
+
+export const MAVEN_VENDOR_IDS = ['maven'] as const;
+
+/** 解析 maven 版本串：容忍 "maven-" / "v" 前缀；限定符（4.0.0-rc-4）→ extra */
+export function parseMavenVersion(vendor: VendorId, input: string): SdkVersion {
+  const raw = input.trim();
+  const s = raw.replace(/^maven-/i, '').replace(/^v/i, '');
+  const m = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?$/.exec(s);
+  if (!m || !m[1] || !m[2] || !m[3]) {
+    throw new SdkvmError(`Invalid Maven version: "${input}"`, {
+      hint: 'Expected forms: 3, 3.9, 3.9.9, 4.0.0-rc-4, latest',
+    });
+  }
+  return {
+    vendor,
+    major: Number(m[1]),
+    minor: Number(m[2]),
+    patch: Number(m[3]),
+    extra: m[4] ?? null,
+    build: null,
+    raw,
+  };
+}
+
+/** maven 恒三段展示；限定符以 -extra 原样接上 */
+export function formatMavenVersion(v: SdkVersion): string {
+  const base = `${v.major}.${v.minor}.${v.patch ?? 0}`;
+  return v.extra ? `${base}-${v.extra}` : base;
+}
+
+/** maven 安装目录名 → 版本；不匹配返回 null */
+export function parseMavenDirName(dir: string): SdkVersion | null {
+  const m = new RegExp(`^(${MAVEN_VENDOR_IDS.join('|')})-(.+)$`).exec(dir);
+  if (!m || !m[1] || !m[2]) return null;
+  try {
+    return parseMavenVersion(m[1], m[2]);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * maven 版本语法：3（major 最新稳定）/ 3.9（minor 线最新稳定）/ 3.9.9（精确）/
+ * 4.0.0-rc-4（精确预发布）/ latest，可带 maven- 前缀。无 lts。
+ */
+export function parseMavenUserSpec(input: string): UserSpec {
+  let s = input.trim().toLowerCase();
+  let vendor: VendorId | undefined;
+  const m = /^(maven)-(.+)$/.exec(s);
+  if (m && m[2]) {
+    vendor = 'maven';
+    s = m[2];
+  }
+  if (s === 'latest') return { vendor, spec: { kind: 'latest' } };
+  if (s === 'lts' || s === '--lts') {
+    throw new SdkvmError(`Invalid Maven version: "${input}"`, {
+      hint: 'Maven has no lts alias — use "3", "3.9", "3.9.9", or "latest"',
+    });
+  }
+  if (/^\d+\.\d+\.\d+(-[0-9a-z.\-]+)?$/.test(s)) return { vendor, spec: { kind: 'full', version: s } };
+  const line = /^(\d+)\.(\d+)$/.exec(s);
+  if (line && line[1] && line[2]) {
+    return { vendor, spec: { kind: 'line', major: Number(line[1]), minor: Number(line[2]) } };
+  }
+  if (/^\d+$/.test(s)) return { vendor, spec: { kind: 'major', major: Number(s) } };
+  throw new SdkvmError(`Invalid Maven version: "${input}"`, {
+    hint: 'Expected: 3, 3.9, 3.9.9, 4.0.0-rc-4, latest, or with vendor prefix like maven-3.9.9',
+  });
+}

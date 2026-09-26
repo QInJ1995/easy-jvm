@@ -12,7 +12,7 @@
 
 中文 | [English](./README.en.md)
 
-管理 **Java JDK**、**Go 工具链**、**Flutter SDK** 与 **Node.js 运行时**。
+管理 **Java JDK**、**Go 工具链**、**Flutter SDK**、**Node.js 运行时**与 **Apache Maven**。
 
 </div>
 
@@ -44,13 +44,14 @@
 | Go      | [go.dev](https://go.dev/dl/)                                                                                            | 全历史稳定版                                                     |
 | Flutter | 官方发布清单                                                                                                            | stable / beta；macOS 双架构，Linux / Windows 仅 x64              |
 | Node.js | [nodejs.org/dist](https://nodejs.org/dist)                                                                              | `lts`（当前 24 Krypton）/ `latest` / 按 major 线；npm 随版本切换 |
+| Maven   | [Maven Central](https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/)                                    | `3` / `3.9` / `latest` 取稳定版；预发布只能精确安装             |
 
 行为约定：
 
-- 各 SDK 目录隔离，`JAVA_HOME`、`GO_HOME`、`FLUTTER_HOME`、`NODE_HOME` 互不覆盖。
+- 各 SDK 目录隔离，`JAVA_HOME`、`GO_HOME`、`FLUTTER_HOME`、`NODE_HOME`、`MAVEN_HOME` 互不覆盖。
 - `use` 只改一个符号链接（Windows 为 junction），不搬移已安装的文件。
-- 下载地址由官方 API 解析。Go、Flutter、Node.js 强制校验 SHA-256；Java 各源尽力校验。
-- Temurin、Go、Flutter、Node.js 可配置镜像。校验和仍取自官方清单。
+- 下载地址由官方 API 解析。Go、Flutter、Node.js 强制校验 SHA-256；Maven 强制校验官方 SHA-512；Java 各源尽力校验。
+- Temurin、Go、Flutter、Node.js、Maven 可配置镜像。校验和仍取自官方清单。
 - 新增语言只需实现一个厂商模块，见[开发](#开发)。
 
 ## 系统要求
@@ -97,7 +98,7 @@ irm https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.ps1 | iex
 
 ```console
 $ sdkvm version
-1.0.3
+1.1.0
 ```
 
 自定义数据根时，**必须在安装命令的环境里带上** `SDKVM_HOME`（`curl | sh` 不会读取 `~/.zshrc`）：
@@ -137,7 +138,7 @@ bun add -g sdkvm
 
 ## 快速开始
 
-Java 可用裸命令（与 `sdkvm java` 等价）；Go / Flutter / Node 用子命令。
+Java 可用裸命令（与 `sdkvm java` 等价）；Go / Flutter / Node / Maven 用子命令。
 
 ```sh
 # 可选：国内加速（按 SDK 类型分别设置，互不影响）
@@ -145,6 +146,7 @@ sdkvm mirror use nju          # Java Temurin
 sdkvm go mirror use nju
 sdkvm flutter mirror use nju
 sdkvm node mirror use nju
+sdkvm maven mirror use aliyun
 sdkvm nrm use taobao          # 仅影响 npm install，与上面的 mirror 无关
 
 # Java
@@ -167,6 +169,11 @@ sdkvm node install lts
 sdkvm node use 24
 node --version
 
+# Maven（需要已有 JAVA_HOME）
+sdkvm maven install 3.9
+sdkvm maven use 3.9
+mvn -version
+
 # 查看与卸载
 sdkvm current
 sdkvm java install 21 --vendor zulu
@@ -182,7 +189,7 @@ sdkvm uninstall zulu-21
 
 ## 命令参考
 
-Java 使用裸命令（`sdkvm install`）或 `sdkvm java`，两者等价。Go、Flutter、Node.js 分别使用 `sdkvm go`、`sdkvm flutter`、`sdkvm node`。
+Java 使用裸命令（`sdkvm install`）或 `sdkvm java`，两者等价。Go、Flutter、Node.js、Maven 分别使用 `sdkvm go`、`sdkvm flutter`、`sdkvm node`、`sdkvm maven`。
 
 ### 命令速查
 
@@ -195,7 +202,7 @@ Java 使用裸命令（`sdkvm install`）或 `sdkvm java`，两者等价。Go、
 | `sdkvm uninstall <version>`                       | 卸载一个版本                                       |
 | `sdkvm mirror ls\|use\|current\|show\|set\|unset` | 管理 SDK 下载镜像站 / URL（安装包，不是 npm 包源） |
 | `sdkvm nrm ls\|use\|current\|add\|del\|test`      | 管理用户级 npm registry（类似 nrm）                |
-| `sdkvm java\|go\|flutter\|node …`                 | 各 SDK 的完整命令组                                |
+| `sdkvm java\|go\|flutter\|node\|maven …`          | 各 SDK 的完整命令组                                |
 | `sdkvm version`                                   | 打印 CLI 版本（同 `sdkvm --version`）              |
 | `sdkvm upgrade`                                   | 升级 CLI。见[升级](#升级)                          |
 
@@ -206,6 +213,7 @@ sdkvm java    install lts | 21 | 21.0.5 | 21.0.5+11 | zulu-21
 sdkvm go      install latest | 1.24 | 1.24.5 | golang-1.24
 sdkvm flutter install latest | 3.47 | 3.47.5 | 3.49.0-0.1.pre | flutter-3.47
 sdkvm node    install lts | latest | 22 | 22.20.0 | nodejs-22.20.0
+sdkvm maven   install latest | 3 | 3.9 | 3.9.9 | 4.0.0-rc-4 | maven-3.9
 ```
 
 ### `sdkvm install <version>`
@@ -223,14 +231,14 @@ sdkvm switch to it: sdkvm use 21
 
 | 选项            | 说明                                                                                                    |
 | --------------- | ------------------------------------------------------------------------------------------------------- |
-| `--vendor <id>` | Java：`temurin`（默认）/ `zulu` / `corretto`。Go 为 `golang`，Flutter 为 `flutter`，Node.js 为 `nodejs` |
+| `--vendor <id>` | Java：`temurin`（默认）/ `zulu` / `corretto`。Go 为 `golang`，Flutter 为 `flutter`，Node.js 为 `nodejs`，Maven 为 `maven` |
 | `--force`       | 已安装时删除并重装。默认跳过已安装版本                                                                  |
 
 校验失败或解压异常时，半成品目录和缓存会被清掉。下载超时是 60 秒无数据，不是总时长上限。
 
 ### `sdkvm use <version>`
 
-在已安装版本中匹配，并更新对应的 `current-*` 链接与 `JAVA_HOME` / `GO_HOME` / `FLUTTER_HOME` / `NODE_HOME` / `PATH`。
+在已安装版本中匹配，并更新对应的 `current-*` 链接与 `JAVA_HOME` / `GO_HOME` / `FLUTTER_HOME` / `NODE_HOME` / `MAVEN_HOME` / `PATH`。
 
 ```sh
 sdkvm use 21
@@ -238,9 +246,10 @@ sdkvm use temurin-21.0.5+11
 sdkvm go use 1.24.5
 sdkvm flutter use 3.47.5
 sdkvm node use 22.20.0
+sdkvm maven use 3.9
 ```
 
-macOS / Linux 上，首次 `use` 会向 shell 配置追加初始化块，重开终端或 `source ~/.zshrc` 后生效。之后的切换只改链接。IDE 需要重启才会读到新的环境变量。详见[切换机制](#切换机制)。
+macOS / Linux 上，首次 `use` 会向 shell 配置追加初始化块，重开终端或 `source ~/.zshrc` 后生效。之后的切换只改链接。IDE 需要重启才会读到新的环境变量。Maven 需要 JDK：没有 `JAVA_HOME` 时会提示先 `sdkvm java use`。详见[切换机制](#切换机制)。
 
 ### `sdkvm ls`
 
@@ -280,6 +289,8 @@ flutter: flutter-3.47.5
   FLUTTER_HOME → ~/.sdkvm/flutters/flutter-3.47.5
 node: nodejs-22.20.0
   NODE_HOME → ~/.sdkvm/nodes/nodejs-22.20.0
+maven: maven-3.9.9
+  MAVEN_HOME → ~/.sdkvm/mavens/maven-3.9.9
 ```
 
 ### `sdkvm uninstall <version>`
@@ -288,7 +299,7 @@ node: nodejs-22.20.0
 
 ### `sdkvm mirror`
 
-按 SDK 类型管理**安装包下载镜像**（不是 npm 包源）。Java：`sdkvm mirror`；其余：`sdkvm go|flutter|node mirror`。作用域互不影响。
+按 SDK 类型管理**安装包下载镜像**（不是 npm 包源）。Java：`sdkvm mirror`；其余：`sdkvm go|flutter|node|maven mirror`。作用域互不影响。
 
 ```sh
 sdkvm mirror ls
@@ -324,20 +335,21 @@ sdkvm nrm test
 
 `install`、`use`、`uninstall` 共用下表。未列出的组合会被拒绝并给出改写提示。
 
-| 语法             | Java             | Go                  | Flutter                        | Node.js                        | 示例                                               |
-| ---------------- | ---------------- | ------------------- | ------------------------------ | ------------------------------ | -------------------------------------------------- |
-| `<major>`        | 该大版本最新补丁 | —                   | —                              | 该 major 最新                  | `21`、`22`                                         |
-| `<major.minor>`  | —                | 该 minor 线最新补丁 | stable 通道该 minor 线最新补丁 | —                              | `1.24`、`3.47`                                     |
-| `lts`            | 最新 LTS 大版本  | —                   | —                              | 最新 LTS 线（当前 24 Krypton） | `lts`                                              |
-| `latest`         | —                | 最新稳定版          | stable 最新，不含 beta         | 最新 Current                   | `latest`                                           |
-| `<full-version>` | 精确版本或前缀   | 精确版本            | 精确版本，可含 prerelease      | 精确版本                       | `21.0.5+11`、`1.24.5`、`3.49.0-0.1.pre`、`22.20.0` |
-| `<vendor>-…`     | 限定发行版       | 同左                | 同左                           | 同左                           | `zulu-21`、`golang-1.24`、`nodejs-22.20.0`         |
+| 语法             | Java             | Go                  | Flutter                        | Node.js                        | Maven                          | 示例                                                              |
+| ---------------- | ---------------- | ------------------- | ------------------------------ | ------------------------------ | ------------------------------ | ----------------------------------------------------------------- |
+| `<major>`        | 该大版本最新补丁 | —                   | —                              | 该 major 最新                  | 该 major 最新稳定版            | `21`、`22`、`3`                                                   |
+| `<major.minor>`  | —                | 该 minor 线最新补丁 | stable 通道该 minor 线最新补丁 | —                              | 该 minor 线最新稳定版          | `1.24`、`3.47`、`3.9`                                             |
+| `lts`            | 最新 LTS 大版本  | —                   | —                              | 最新 LTS 线（当前 24 Krypton） | —                              | `lts`                                                             |
+| `latest`         | —                | 最新稳定版          | stable 最新，不含 beta         | 最新 Current                   | 最高稳定版，不含预发布         | `latest`                                                          |
+| `<full-version>` | 精确版本或前缀   | 精确版本            | 精确版本，可含 prerelease      | 精确版本                       | 精确版本，可含预发布           | `21.0.5+11`、`1.24.5`、`3.49.0-0.1.pre`、`22.20.0`、`4.0.0-rc-4` |
+| `<vendor>-…`     | 限定发行版       | 同左                | 同左                           | 同左                           | 同左                           | `zulu-21`、`golang-1.24`、`nodejs-22.20.0`、`maven-3.9.9`         |
 
 匹配规则：
 
-- `21`、`1.24`、`3.47`、`22` 匹配该线已安装或可安装的最新补丁。
-- Java 的 `21.0.5` 做前缀匹配，可以命中 `21.0.5+11`。Go、Flutter、Node.js 的精确版本按全串匹配。
+- `21`、`1.24`、`3.47`、`22`、`3`、`3.9` 匹配该线已安装或可安装的最新补丁。
+- Java 的 `21.0.5` 做前缀匹配，可以命中 `21.0.5+11`。Go、Flutter、Node.js、Maven 的精确版本按全串匹配。
 - Flutter 的 `latest` 与 `3.47` 只解析 stable。安装 beta 需要完整 prerelease，例如 `3.49.0-0.1.pre`。
+- Maven 只收录 3.0 及以上的稳定版 `x.y.z`。`latest`、`3`、`3.9` 不含预发布；安装 `4.0.0-rc-4` 这类版本必须写完整串。Maven 没有 `lts`。
 - Java 的 `lts` 与 Adoptium 列表对齐，当前为 8 / 11 / 17 / 21 / 25。Node.js 的 `lts` 取官方 `index.json` 里最新带 LTS 代号的条目。
 - Node.js 不接受 `22.20` 这种两段式，应写成 `22` 或 `22.20.0`。
 - 省略厂商前缀时使用默认发行版。只有 Java 可以配置默认厂商，见[配置文件](#配置文件)。
@@ -354,10 +366,12 @@ sdkvm nrm test
 ├── gos/             # Go：golang-1.24.5
 ├── flutters/        # Flutter：flutter-3.47.5
 ├── nodes/           # Node.js：nodejs-22.20.0
+├── mavens/          # Maven：maven-3.9.9
 ├── current-java     # JAVA_HOME 链接（Windows 为 junction）
 ├── current-go
 ├── current-flutter
 ├── current-node
+├── current-maven
 ├── runtime/         # 脚本安装的 CLI 运行时，与 current-node 隔离
 ├── cli/             # 脚本安装的 CLI 包
 ├── bin/             # 脚本安装的入口 sdkvm（需加入 PATH）
@@ -366,11 +380,11 @@ sdkvm nrm test
 └── tmp/             # 解压临时目录，同样会删除
 ```
 
-解压后的大致体积：Java 约 300 MB，Go 约 250 MB，Node.js 约 100 MB（含捆绑 npm），Flutter 数 GB（压缩包约 1–2.2 GB）。
+解压后的大致体积：Java 约 300 MB，Go 约 250 MB，Node.js 约 100 MB（含捆绑 npm），Maven 约 10 MB，Flutter 数 GB（压缩包约 1–2.2 GB）。
 
 ### 切换机制
 
-macOS / Linux 上，`current-*` 是指向当前版本目录的符号链接。首次 `use` 会向 shell 配置追加带标记的块：zsh 写入 `~/.zshrc`，bash 写入 `~/.bash_profile` 或 `~/.bashrc`。四种 SDK 各一块。
+macOS / Linux 上，`current-*` 是指向当前版本目录的符号链接。首次 `use` 会向 shell 配置追加带标记的块：zsh 写入 `~/.zshrc`，bash 写入 `~/.bash_profile` 或 `~/.bashrc`。五种 SDK 各一块。
 
 ```sh
 # >>> sdkvm java init >>>
@@ -392,11 +406,16 @@ case ":$PATH:" in *":$FLUTTER_HOME/bin:"*) ;; *) export PATH="$FLUTTER_HOME/bin:
 export NODE_HOME="$HOME/.sdkvm/current-node"
 case ":$PATH:" in *":$NODE_HOME/bin:"*) ;; *) export PATH="$NODE_HOME/bin:$PATH";; esac
 # <<< sdkvm node init <<<
+
+# >>> sdkvm maven init >>>
+export MAVEN_HOME="$HOME/.sdkvm/current-maven"
+case ":$PATH:" in *":$MAVEN_HOME/bin:"*) ;; *) export PATH="$MAVEN_HOME/bin:$PATH";; esac
+# <<< sdkvm maven init <<<
 ```
 
 环境变量指向链接。之后的 `use` 只改链接，新终端会读到新值。
 
-Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变量写成 `REG_EXPAND_SZ`，保留 `%VAR%` 引用，避免 `setx` 的 1024 字符截断。PATH 追加 `%JAVA_HOME%\bin`、`%GO_HOME%\bin`、`%FLUTTER_HOME%\bin`。Node.js 的 Windows 归档没有 `bin/`，PATH 项是 `%NODE_HOME%` 本身。需要重开终端或重启 IDE。
+Windows 上，五个 `current-*` 都是 junction。`use` 把用户级环境变量写成 `REG_EXPAND_SZ`，保留 `%VAR%` 引用，避免 `setx` 的 1024 字符截断。PATH 追加 `%JAVA_HOME%\bin`、`%GO_HOME%\bin`、`%FLUTTER_HOME%\bin`、`%MAVEN_HOME%\bin`。Node.js 的 Windows 归档没有 `bin/`，PATH 项是 `%NODE_HOME%` 本身。需要重开终端或重启 IDE。
 
 ## 配置
 
@@ -412,7 +431,8 @@ Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变�
     "temurin": "https://mirrors.nju.edu.cn/adoptium",
     "golang": "https://golang.google.cn/dl",
     "flutter": "https://mirror.nju.edu.cn/flutter/flutter_infra_release",
-    "nodejs": "https://mirror.nju.edu.cn/nodejs-release"
+    "nodejs": "https://mirror.nju.edu.cn/nodejs-release",
+    "maven": "https://maven.aliyun.com/repository/central"
   },
   "npmRegistries": {
     "myprivate": "http://xxx/registry/"
@@ -446,7 +466,7 @@ Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变�
 
 |        | `sdkvm mirror`                               | `sdkvm nrm`         |
 | ------ | -------------------------------------------- | ------------------- |
-| 改什么 | JDK / Go / Flutter / Node **安装包**下载地址 | **npm 包** registry |
+| 改什么 | JDK / Go / Flutter / Node / Maven **安装包**下载地址 | **npm 包** registry |
 | 影响   | `sdkvm … install`                            | `npm install`       |
 | 作用域 | 按 SDK 类型分别设置                          | 用户级全局          |
 
@@ -459,15 +479,16 @@ sdkvm mirror use nju
 sdkvm go mirror use nju
 sdkvm flutter mirror use nju
 sdkvm node mirror use nju
+sdkvm maven mirror use aliyun
 ```
 
-| 站点       | Java (temurin) | Go         | Flutter    | Node.js               |
-| ---------- | -------------- | ---------- | ---------- | --------------------- |
-| `nju`      | ✓              | ✓          | ✓          | ✓                     |
-| `tuna`     | ✓              | —          | ✓          | —（归档不全，未收录） |
-| `aliyun`   | —              | ✓          | —          | ✓                     |
-| `huawei`   | —              | —          | —          | ✓                     |
-| `official` | 清空本类型     | 清空本类型 | 清空本类型 | 清空本类型            |
+| 站点       | Java (temurin) | Go         | Flutter    | Node.js               | Maven      |
+| ---------- | -------------- | ---------- | ---------- | --------------------- | ---------- |
+| `nju`      | ✓              | ✓          | ✓          | ✓                     | —          |
+| `tuna`     | ✓              | —          | ✓          | —（归档不全，未收录） | —          |
+| `aliyun`   | —              | ✓          | —          | ✓                     | ✓          |
+| `huawei`   | —              | —          | —          | ✓                     | ✓          |
+| `official` | 清空本类型     | 清空本类型 | 清空本类型 | 清空本类型            | 清空本类型 |
 
 手填 URL 或临时覆盖：
 
@@ -476,7 +497,7 @@ sdkvm go mirror set golang https://golang.google.cn/dl
 SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 ```
 
-优先级：`SDKVM_MIRROR` > `config.mirror[<vendor>]` > 官方源。镜像只替换归档下载地址；版本元数据与校验和仍走官方 API。走镜像时若官方校验源不可达，安装会**硬失败**（避免无法核对的包被放行）。
+优先级：`SDKVM_MIRROR` > `config.mirror[<vendor>]` > 官方源。镜像只替换归档下载地址；版本元数据与校验和优先走官方 API。官方校验源不可达、且校验文件是归档旁路（Maven `.sha512`、Temurin `.json`）时，改拉镜像上的同一文件再核对。两边都拿不到，或哈希不一致，安装仍失败。
 
 | 厂商           | 说明                                                                                                                            |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -484,6 +505,7 @@ SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 | Go             | 文件名拼在根 URL 后；如 `nju` / `aliyun`                                                                                        |
 | Flutter        | 桶前缀替换；已验证 [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release)。不要用 `storage.flutter-io.cn`（无发布清单） |
 | Node.js        | 前缀替换；已验证 [NJU](https://mirror.nju.edu.cn/nodejs-release)。不要用 TUNA nodejs-release（缺归档）                          |
+| Maven          | Central 路径前缀替换；已验证 [阿里云 central](https://maven.aliyun.com/repository/central)、[华为云 maven](https://repo.huaweicloud.com/repository/maven)。校验用官方 `.sha512` |
 | Zulu、Corretto | 官方 CDN 直发，暂不支持镜像                                                                                                     |
 
 ### npm registry
@@ -496,8 +518,8 @@ sdkvm nrm test         # 测延迟
 
 ## 安全性
 
-- 下载地址来自官方 API：Adoptium、Azul Metadata、Corretto、go.dev/dl、Flutter releases、nodejs.org/dist `index.json`。不抓取搜索页。
-- 归档按块计算 SHA-256。Go、Flutter、Node.js（官方 `SHASUMS256.txt`）校验失败即中止。Java 校验源不可达时：官方源警告并继续；**走镜像下载时硬失败**（避免无法核对的镜像包被放行）。
+- 下载地址来自官方 API：Adoptium、Azul Metadata、Corretto、go.dev/dl、Flutter releases、nodejs.org/dist `index.json`、Maven Central `maven-metadata.xml`。不抓取搜索页。
+- 归档按块计算 SHA-256。Go、Flutter、Node.js（官方 `SHASUMS256.txt`）校验失败即中止。Maven 再对落盘文件计算 SHA-512，对照 `.sha512`（Central 不提供 `.sha256`）。校验源不可达时：官方下载警告并继续；走镜像时先试官方旁路，失败再试镜像上的同一文件。两边都拿不到，或哈希不一致，安装失败。
 - 解压后检查单根目录和可执行文件，并且只解压到新的空目录。
 - 安装与 `sdkvm upgrade` 持有 `~/.sdkvm/.lock`，避免并发写互相覆盖。
 
@@ -520,7 +542,8 @@ set -gx JAVA_HOME $HOME/.sdkvm/current-java
 set -gx GO_HOME $HOME/.sdkvm/current-go
 set -gx FLUTTER_HOME $HOME/.sdkvm/current-flutter
 set -gx NODE_HOME $HOME/.sdkvm/current-node
-fish_add_path $JAVA_HOME/bin $GO_HOME/bin $FLUTTER_HOME/bin $NODE_HOME/bin
+set -gx MAVEN_HOME $HOME/.sdkvm/current-maven
+fish_add_path $JAVA_HOME/bin $GO_HOME/bin $FLUTTER_HOME/bin $NODE_HOME/bin $MAVEN_HOME/bin
 ```
 
 ### Flutter 下载慢或中断
@@ -565,7 +588,7 @@ rm -rf ~/.sdkvm/bin ~/.sdkvm/cli ~/.sdkvm/runtime
 
 Windows 对应删除 `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`，以及 `%USERPROFILE%\.sdkvm\cli` 与 `%USERPROFILE%\.sdkvm\runtime`，并从用户 PATH 移除 `%USERPROFILE%\.sdkvm\bin`。
 
-确认不再需要已安装的 JDK、Go、Flutter、Node.js 之后，再删除数据目录：
+确认不再需要已安装的 JDK、Go、Flutter、Node.js、Maven 之后，再删除数据目录：
 
 ```sh
 rm -rf ~/.sdkvm
@@ -574,9 +597,9 @@ rm -rf ~/.sdkvm
 同时删除 shell 配置里：
 
 - `# >>> sdkvm path >>>` … `# <<< sdkvm path <<<`
-- 各 SDK 的 `>>> sdkvm java|go|flutter|node init >>>` … `<<< … <<<`
+- 各 SDK 的 `>>> sdkvm java|go|flutter|node|maven init >>>` … `<<< … <<<`
 
-Windows 还需要在系统设置中删除 `JAVA_HOME`、`GO_HOME`、`FLUTTER_HOME`、`NODE_HOME`，并从用户 PATH 移除 `%JAVA_HOME%\bin`、`%GO_HOME%\bin`、`%FLUTTER_HOME%\bin`、`%NODE_HOME%`。
+Windows 还需要在系统设置中删除 `JAVA_HOME`、`GO_HOME`、`FLUTTER_HOME`、`NODE_HOME`、`MAVEN_HOME`，并从用户 PATH 移除 `%JAVA_HOME%\bin`、`%GO_HOME%\bin`、`%FLUTTER_HOME%\bin`、`%NODE_HOME%`、`%MAVEN_HOME%\bin`。
 
 ## 开发
 
@@ -594,8 +617,8 @@ npm run build
 src/
 ├── cli/       # install / use / ls / uninstall / mirror / nrm / upgrade
 ├── core/      # 版本解析、注册表、配置、文件锁
-├── sdk/       # java / go / flutter / node 的目录、环境变量、版本语法
-├── vendor/    # temurin / zulu / corretto / golang / flutter / nodejs 与镜像改写
+├── sdk/       # java / go / flutter / node / maven 的目录、环境变量、版本语法
+├── vendor/    # temurin / zulu / corretto / golang / flutter / nodejs / maven 与镜像改写
 ├── fs/        # 解压、目录归一化、链接
 ├── shell/     # rc 写入、Windows 注册表
 ├── net/       # fetch、流式下载、校验

@@ -1,7 +1,7 @@
 import type { SdkTypeId } from '../sdk/types.js';
 
 /** 支持镜像的 vendor id（与 applyMirror / 历史 RECOMMENDED 对齐） */
-export type MirrorVendorId = 'temurin' | 'golang' | 'flutter' | 'nodejs';
+export type MirrorVendorId = 'temurin' | 'golang' | 'flutter' | 'nodejs' | 'maven';
 
 export interface MirrorSite {
   name: string;
@@ -18,11 +18,13 @@ export const MIRRORABLE_BY_TYPE: Record<SdkTypeId, readonly MirrorVendorId[]> = 
   go: ['golang'],
   flutter: ['flutter'],
   node: ['nodejs'],
+  maven: ['maven'],
 };
 
 /**
  * 内置镜像站。只收录与 applyMirror 路径约定兼容、且站方/文档可对上的根 URL。
  * tuna 不含 nodejs：TUNA nodejs-release 归档不全。
+ * nju / tuna 不含 maven：它们的 Apache 发行目录不是 Maven Central 路径。
  */
 export const MIRROR_SITE_PRESETS: readonly MirrorSite[] = [
   {
@@ -51,6 +53,7 @@ export const MIRROR_SITE_PRESETS: readonly MirrorSite[] = [
     vendors: {
       golang: 'https://mirrors.aliyun.com/golang',
       nodejs: 'https://mirrors.aliyun.com/nodejs-release',
+      maven: 'https://maven.aliyun.com/repository/central',
     },
   },
   {
@@ -58,6 +61,7 @@ export const MIRROR_SITE_PRESETS: readonly MirrorSite[] = [
     list: true,
     vendors: {
       nodejs: 'https://repo.huaweicloud.com/nodejs',
+      maven: 'https://repo.huaweicloud.com/repository/maven',
     },
   },
   {

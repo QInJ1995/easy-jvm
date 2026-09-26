@@ -3,6 +3,7 @@ import { javaSdk } from './java.js';
 import { goSdk } from './go.js';
 import { flutterSdk } from './flutter.js';
 import { nodeSdk } from './node.js';
+import { mavenSdk } from './maven.js';
 import { SdkvmError } from '../util/errors.js';
 
 const SPECS: Partial<Record<SdkTypeId, SdkTypeSpec>> = {
@@ -10,10 +11,11 @@ const SPECS: Partial<Record<SdkTypeId, SdkTypeSpec>> = {
   go: goSdk,
   flutter: flutterSdk,
   node: nodeSdk,
+  maven: mavenSdk,
 };
 
 /** 已注册的 SDK 类型（current/迁移等需要遍历全部类型时使用） */
-export const SDK_TYPES: readonly SdkTypeId[] = ['java', 'go', 'flutter', 'node'];
+export const SDK_TYPES: readonly SdkTypeId[] = ['java', 'go', 'flutter', 'node', 'maven'];
 
 export function getSdkType(id: SdkTypeId): SdkTypeSpec {
   const spec = SPECS[id];

@@ -1,8 +1,8 @@
 import type { Platform } from '../core/platform.js';
 import type { ReleaseLine, SdkVersion, UserSpec, Vendor, VendorPlatform, VersionSpec } from '../vendor/types.js';
 
-/** SDK 类型 id：java / go / flutter / node（未来可扩展） */
-export type SdkTypeId = 'java' | 'go' | 'flutter' | 'node';
+/** SDK 类型 id：java / go / flutter / node / maven（未来可扩展） */
+export type SdkTypeId = 'java' | 'go' | 'flutter' | 'node' | 'maven';
 
 /**
  * SDK 类型描述：目录布局、版本语法、环境变量、探测方式全部按类型参数化，
@@ -16,10 +16,12 @@ export interface SdkTypeSpec {
   readonly installDirName: string;
   /** current 链接名（根目录之下） */
   readonly currentLinkName: string;
-  /** 切换时导出的环境变量名：JAVA_HOME / GO_HOME / FLUTTER_HOME / NODE_HOME */
+  /** 切换时导出的环境变量名：JAVA_HOME / GO_HOME / FLUTTER_HOME / NODE_HOME / MAVEN_HOME */
   readonly envVar: string;
-  /** 是否支持 lts 语义（java / node 有，go / flutter 没有） */
+  /** 是否支持 lts 语义（java / node 有，go / flutter / maven 没有） */
   readonly supportsLts: boolean;
+  /** use 之后若进程里没有 JAVA_HOME，提示先切换 JDK（Maven 需要） */
+  readonly requiresJdk?: boolean;
   /**
    * 已安装版本里哪些 major 算 LTS（仅 supportsLts 时使用）。
    * java 对齐 Adoptium；node 为偶数年 major（官方 LTS 线约定）。

@@ -38,12 +38,12 @@ Manage **Java JDKs**, the **Go toolchain**, the **Flutter SDK**, and the **Node.
 
 `sdkvm` is a Node.js CLI that installs, switches, and removes SDKs.
 
-| SDK | Source | Notes |
-|---|---|---|
-| Java | [Temurin](https://adoptium.net/), [Zulu](https://www.azul.com/downloads/), [Corretto](https://aws.amazon.com/corretto/) | `lts` is currently 8 / 11 / 17 / 21 / 25 |
-| Go | [go.dev](https://go.dev/dl/) | All historical stable releases |
-| Flutter | Official release manifest | stable / beta; both macOS architectures; Linux / Windows are x64 only |
-| Node.js | [nodejs.org/dist](https://nodejs.org/dist) | `lts` (currently 24 Krypton) / `latest` / major line; npm switches with the runtime |
+| SDK     | Source                                                                                                                  | Notes                                                                               |
+| ------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Java    | [Temurin](https://adoptium.net/), [Zulu](https://www.azul.com/downloads/), [Corretto](https://aws.amazon.com/corretto/) | `lts` is currently 8 / 11 / 17 / 21 / 25                                            |
+| Go      | [go.dev](https://go.dev/dl/)                                                                                            | All historical stable releases                                                      |
+| Flutter | Official release manifest                                                                                               | stable / beta; both macOS architectures; Linux / Windows are x64 only               |
+| Node.js | [nodejs.org/dist](https://nodejs.org/dist)                                                                              | `lts` (currently 24 Krypton) / `latest` / major line; npm switches with the runtime |
 
 Behavior:
 
@@ -55,11 +55,11 @@ Behavior:
 
 ## Requirements
 
-| Dependency | Version | Notes |
-|---|---|---|
-| Node.js | >= 18.15 | Required for an npm install. The install script ships an isolated runtime |
-| OS | — | macOS (Apple Silicon / Intel), mainstream Linux, Windows 10+ |
-| Extractor | built in | `tar` on macOS / Linux. Windows uses bsdtar, then PowerShell `Expand-Archive` |
+| Dependency | Version  | Notes                                                                         |
+| ---------- | -------- | ----------------------------------------------------------------------------- |
+| Node.js    | >= 18.15 | Required for an npm install. The install script ships an isolated runtime     |
+| OS         | —        | macOS (Apple Silicon / Intel), mainstream Linux, Windows 10+                  |
+| Extractor  | built in | `tar` on macOS / Linux. Windows uses bsdtar, then PowerShell `Expand-Archive` |
 
 Platform limits:
 
@@ -128,10 +128,10 @@ bun add -g sdkvm
 
 ## Upgrade
 
-| Install method | Command | What changes |
-|---|---|---|
-| Script (recommended) | `sdkvm upgrade` | Replaces `$SDKVM_HOME/cli` only. The runtime and installed SDKs stay |
-| npm and friends | `npm update -g sdkvm` | CLI only. pnpm / yarn / bun use their own global update command |
+| Install method       | Command               | What changes                                                         |
+| -------------------- | --------------------- | -------------------------------------------------------------------- |
+| Script (recommended) | `sdkvm upgrade`       | Replaces `$SDKVM_HOME/cli` only. The runtime and installed SDKs stay |
+| npm and friends      | `npm update -g sdkvm` | CLI only. pnpm / yarn / bun use their own global update command      |
 
 The data directory is independent of a CLI upgrade. A script install can also be refreshed by running the install script again.
 
@@ -186,18 +186,18 @@ Java accepts bare commands (`sdkvm install`) or `sdkvm java`. Go, Flutter, and N
 
 ### Cheat sheet
 
-| Command | Effect |
-|---|---|
-| `sdkvm install <version>` | Install Java (same as `sdkvm java install`) |
-| `sdkvm use <version>` | Switch the current Java |
-| `sdkvm ls` / `sdkvm ls -r` | List installed versions / installable lines |
-| `sdkvm current` | Show the current version of every SDK |
-| `sdkvm uninstall <version>` | Remove one version |
+| Command                                           | Effect                                                                                   |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `sdkvm install <version>`                         | Install Java (same as `sdkvm java install`)                                              |
+| `sdkvm use <version>`                             | Switch the current Java                                                                  |
+| `sdkvm ls` / `sdkvm ls -r`                        | List installed versions / installable lines                                              |
+| `sdkvm current`                                   | Show the current version of every SDK                                                    |
+| `sdkvm uninstall <version>`                       | Remove one version                                                                       |
 | `sdkvm mirror ls\|use\|current\|show\|set\|unset` | Manage SDK download mirror sites / URLs (install archives, not the npm package registry) |
-| `sdkvm nrm ls\|use\|current\|add\|del\|test` | Manage the user-level npm registry (like nrm) |
-| `sdkvm java\|go\|flutter\|node …` | Full command group for that SDK |
-| `sdkvm version` | Print the CLI version (same as `sdkvm --version`) |
-| `sdkvm upgrade` | Upgrade the CLI. See [Upgrade](#upgrade) |
+| `sdkvm nrm ls\|use\|current\|add\|del\|test`      | Manage the user-level npm registry (like nrm)                                            |
+| `sdkvm java\|go\|flutter\|node …`                 | Full command group for that SDK                                                          |
+| `sdkvm version`                                   | Print the CLI version (same as `sdkvm --version`)                                        |
+| `sdkvm upgrade`                                   | Upgrade the CLI. See [Upgrade](#upgrade)                                                 |
 
 Version forms:
 
@@ -221,10 +221,10 @@ sdkvm installed Temurin 21.0.12.1 → ~/.sdkvm/jdks/temurin-21.0.12.1
 sdkvm switch to it: sdkvm use 21
 ```
 
-| Option | Meaning |
-|---|---|
+| Option          | Meaning                                                                                                    |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
 | `--vendor <id>` | Java: `temurin` (default) / `zulu` / `corretto`. Go is `golang`, Flutter is `flutter`, Node.js is `nodejs` |
-| `--force` | Delete and reinstall. The default is to skip a version that is already present |
+| `--force`       | Delete and reinstall. The default is to skip a version that is already present                             |
 
 A failed checksum or extract removes the partial directory and the cache. The download timer is 60 seconds without data, not a cap on total time.
 
@@ -297,11 +297,11 @@ sdkvm go mirror use aliyun
 sdkvm node mirror use official   # restore official source for that type
 ```
 
-| Action | Meaning |
-|---|---|
-| `ls` / `current` / `show` | List sites and show the current config for this type |
-| `use <site>` | Switch to a built-in site (`nju` / `tuna` / `aliyun` / `huawei` / `official`) |
-| `set [vendor] <url>` / `unset` | Set or clear a raw URL |
+| Action                         | Meaning                                                                       |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| `ls` / `current` / `show`      | List sites and show the current config for this type                          |
+| `use <site>`                   | Switch to a built-in site (`nju` / `tuna` / `aliyun` / `huawei` / `official`) |
+| `set [vendor] <url>` / `unset` | Set or clear a raw URL                                                        |
 
 Coverage and hand-entered URLs: [Mirrors and npm registry](#mirrors-and-npm-registry).
 
@@ -324,14 +324,14 @@ Built-in names: `npm`, `yarn`, `taobao` (alias `npmmirror`), `tencent`, `cnpm`, 
 
 `install`, `use`, and `uninstall` share this table. Combinations that are not listed are rejected with a rewrite hint.
 
-| Form | Java | Go | Flutter | Node.js | Example |
-|---|---|---|---|---|---|
-| `<major>` | Latest patch of that major | — | — | Latest of that major | `21`, `22` |
-| `<major.minor>` | — | Latest patch of that minor line | Latest stable patch of that minor line | — | `1.24`, `3.47` |
-| `lts` | Latest LTS major | — | — | Latest LTS line (currently 24 Krypton) | `lts` |
-| `latest` | — | Newest stable | Newest stable, not beta | Newest Current | `latest` |
-| `<full-version>` | Exact or prefix | Exact | Exact, including a prerelease | Exact | `21.0.5+11`, `1.24.5`, `3.49.0-0.1.pre`, `22.20.0` |
-| `<vendor>-…` | Pin a distribution | Same | Same | Same | `zulu-21`, `golang-1.24`, `nodejs-22.20.0` |
+| Form             | Java                       | Go                              | Flutter                                | Node.js                                | Example                                            |
+| ---------------- | -------------------------- | ------------------------------- | -------------------------------------- | -------------------------------------- | -------------------------------------------------- |
+| `<major>`        | Latest patch of that major | —                               | —                                      | Latest of that major                   | `21`, `22`                                         |
+| `<major.minor>`  | —                          | Latest patch of that minor line | Latest stable patch of that minor line | —                                      | `1.24`, `3.47`                                     |
+| `lts`            | Latest LTS major           | —                               | —                                      | Latest LTS line (currently 24 Krypton) | `lts`                                              |
+| `latest`         | —                          | Newest stable                   | Newest stable, not beta                | Newest Current                         | `latest`                                           |
+| `<full-version>` | Exact or prefix            | Exact                           | Exact, including a prerelease          | Exact                                  | `21.0.5+11`, `1.24.5`, `3.49.0-0.1.pre`, `22.20.0` |
+| `<vendor>-…`     | Pin a distribution         | Same                            | Same                                   | Same                                   | `zulu-21`, `golang-1.24`, `nodejs-22.20.0`         |
 
 Rules:
 
@@ -420,23 +420,23 @@ Path: `~/.sdkvm/config.json`. A corrupt file is renamed to `config.json.bak` and
 }
 ```
 
-| Field | Meaning | Default |
-|---|---|---|
-| `version` | Schema version | `1` |
+| Field           | Meaning                                                  | Default     |
+| --------------- | -------------------------------------------------------- | ----------- |
+| `version`       | Schema version                                           | `1`         |
 | `defaultVendor` | Java distribution used when the vendor prefix is omitted | `"temurin"` |
-| `mirror` | Vendor id to mirror root URL. Ids are unique across SDKs | `{}` |
-| `npmRegistries` | Custom npm registries from `sdkvm nrm add` | `{}` |
+| `mirror`        | Vendor id to mirror root URL. Ids are unique across SDKs | `{}`        |
+| `npmRegistries` | Custom npm registries from `sdkvm nrm add`               | `{}`        |
 
 ### Environment variables
 
-| Variable | Meaning |
-|---|---|
-| `SDKVM_HOME` | Data root. Default `~/.sdkvm` |
-| `SDKVM_MIRROR` | One-shot mirror. Wins over the config file and is not saved |
-| `SDKVM_QUIET` | Non-empty suppresses info and warn logs |
-| `SDKVM_NODE_DIST` | Node distribution root used by the install script |
+| Variable             | Meaning                                                            |
+| -------------------- | ------------------------------------------------------------------ |
+| `SDKVM_HOME`         | Data root. Default `~/.sdkvm`                                      |
+| `SDKVM_MIRROR`       | One-shot mirror. Wins over the config file and is not saved        |
+| `SDKVM_QUIET`        | Non-empty suppresses info and warn logs                            |
+| `SDKVM_NODE_DIST`    | Node distribution root used by the install script                  |
 | `SDKVM_RELEASE_BASE` | GitHub Release root used by the install script and `sdkvm upgrade` |
-| `SDKVM_RUNTIME_NODE` | Node version bundled by the install script. Default `22.20.0` |
+| `SDKVM_RUNTIME_NODE` | Node version bundled by the install script. Default `22.20.0`      |
 
 Mirror precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official source. See [Mirrors and npm registry](#mirrors-and-npm-registry).
 
@@ -444,11 +444,11 @@ Mirror precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official source.
 
 Two independent features:
 
-| | `sdkvm mirror` | `sdkvm nrm` |
-|---|---|---|
+|         | `sdkvm mirror`                                     | `sdkvm nrm`              |
+| ------- | -------------------------------------------------- | ------------------------ |
 | Changes | JDK / Go / Flutter / Node **install archive** URLs | **npm package** registry |
-| Affects | `sdkvm … install` | `npm install` |
-| Scope | Per SDK type | User-level global |
+| Affects | `sdkvm … install`                                  | `npm install`            |
+| Scope   | Per SDK type                                       | User-level global        |
 
 ### SDK install mirrors
 
@@ -461,13 +461,13 @@ sdkvm flutter mirror use nju
 sdkvm node mirror use nju
 ```
 
-| Site | Java (temurin) | Go | Flutter | Node.js |
-|---|---|---|---|---|
-| `nju` | ✓ | ✓ | ✓ | ✓ |
-| `tuna` | ✓ | — | ✓ | — (incomplete archives; not listed) |
-| `aliyun` | — | ✓ | — | ✓ |
-| `huawei` | — | — | — | ✓ |
-| `official` | Clear this type | Clear this type | Clear this type | Clear this type |
+| Site       | Java (temurin)  | Go              | Flutter         | Node.js                             |
+| ---------- | --------------- | --------------- | --------------- | ----------------------------------- |
+| `nju`      | ✓               | ✓               | ✓               | ✓                                   |
+| `tuna`     | ✓               | —               | ✓               | — (incomplete archives; not listed) |
+| `aliyun`   | —               | ✓               | —               | ✓                                   |
+| `huawei`   | —               | —               | —               | ✓                                   |
+| `official` | Clear this type | Clear this type | Clear this type | Clear this type                     |
 
 Raw URL or one-shot override:
 
@@ -478,13 +478,13 @@ SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 
 Precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official. A mirror replaces the archive URL only; metadata and checksums still come from the official API. If a mirrored download cannot fetch the official checksum source, install **fails hard**.
 
-| Vendor | Notes |
-|---|---|
-| Temurin | Adoptium layout; verified against [NJU](https://mirrors.nju.edu.cn/adoptium) and [TUNA](https://mirrors.tuna.tsinghua.edu.cn/Adoptium) |
-| Go | File name appended to the root; e.g. `nju` / `aliyun` |
-| Flutter | Bucket-prefix replacement; verified against [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release). Do not use `storage.flutter-io.cn` |
-| Node.js | Prefix replacement; verified against [NJU](https://mirror.nju.edu.cn/nodejs-release). Do not use TUNA nodejs-release |
-| Zulu, Corretto | Official CDN only; no mirror support yet |
+| Vendor         | Notes                                                                                                                                          |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Temurin        | Adoptium layout; verified against [NJU](https://mirrors.nju.edu.cn/adoptium) and [TUNA](https://mirrors.tuna.tsinghua.edu.cn/Adoptium)         |
+| Go             | File name appended to the root; e.g. `nju` / `aliyun`                                                                                          |
+| Flutter        | Bucket-prefix replacement; verified against [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release). Do not use `storage.flutter-io.cn` |
+| Node.js        | Prefix replacement; verified against [NJU](https://mirror.nju.edu.cn/nodejs-release). Do not use TUNA nodejs-release                           |
+| Zulu, Corretto | Official CDN only; no mirror support yet                                                                                                       |
 
 ### npm registry
 
@@ -572,6 +572,7 @@ rm -rf ~/.sdkvm
 ```
 
 Also delete these shell blocks:
+
 - `# >>> sdkvm path >>>` … `# <<< sdkvm path <<<`
 - each SDK’s `>>> sdkvm java|go|flutter|node init >>>` … `<<< … <<<`
 
@@ -605,4 +606,4 @@ To add a language, implement `listMajors` and `resolve` under `src/vendor/`, add
 
 ## License
 
-[MIT](./LICENSE) © QINJIN
+[MIT](./LICENSE) © qinlaoshi

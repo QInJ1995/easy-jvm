@@ -38,12 +38,12 @@
 
 `sdkvm` 用 Node.js 编写，负责多种语言 SDK 的安装、切换和卸载。
 
-| SDK | 来源 | 说明 |
-|---|---|---|
-| Java | [Temurin](https://adoptium.net/)、[Zulu](https://www.azul.com/downloads/)、[Corretto](https://aws.amazon.com/corretto/) | `lts` 当前为 8 / 11 / 17 / 21 / 25 |
-| Go | [go.dev](https://go.dev/dl/) | 全历史稳定版 |
-| Flutter | 官方发布清单 | stable / beta；macOS 双架构，Linux / Windows 仅 x64 |
-| Node.js | [nodejs.org/dist](https://nodejs.org/dist) | `lts`（当前 24 Krypton）/ `latest` / 按 major 线；npm 随版本切换 |
+| SDK     | 来源                                                                                                                    | 说明                                                             |
+| ------- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Java    | [Temurin](https://adoptium.net/)、[Zulu](https://www.azul.com/downloads/)、[Corretto](https://aws.amazon.com/corretto/) | `lts` 当前为 8 / 11 / 17 / 21 / 25                               |
+| Go      | [go.dev](https://go.dev/dl/)                                                                                            | 全历史稳定版                                                     |
+| Flutter | 官方发布清单                                                                                                            | stable / beta；macOS 双架构，Linux / Windows 仅 x64              |
+| Node.js | [nodejs.org/dist](https://nodejs.org/dist)                                                                              | `lts`（当前 24 Krypton）/ `latest` / 按 major 线；npm 随版本切换 |
 
 行为约定：
 
@@ -55,10 +55,10 @@
 
 ## 系统要求
 
-| 依赖 | 版本 | 说明 |
-|---|---|---|
-| Node.js | >= 18.15 | npm 安装需要本机 Node。脚本安装自带隔离运行时，不要求预先安装 |
-| 操作系统 | — | macOS（Apple Silicon / Intel）、主流 Linux、Windows 10+ |
+| 依赖     | 版本     | 说明                                                                              |
+| -------- | -------- | --------------------------------------------------------------------------------- |
+| Node.js  | >= 18.15 | npm 安装需要本机 Node。脚本安装自带隔离运行时，不要求预先安装                     |
+| 操作系统 | —        | macOS（Apple Silicon / Intel）、主流 Linux、Windows 10+                           |
 | 解压工具 | 系统自带 | macOS / Linux 用 `tar`；Windows 用 bsdtar，缺失时回退 PowerShell `Expand-Archive` |
 
 平台限制：
@@ -128,10 +128,10 @@ bun add -g sdkvm
 
 ## 升级
 
-| 安装方式 | 命令 | 影响范围 |
-|---|---|---|
-| 脚本（推荐） | `sdkvm upgrade` | 只替换 `$SDKVM_HOME/cli`。runtime 与已安装的 SDK 保持不变 |
-| npm 等 | `npm update -g sdkvm` | 只更新 CLI。pnpm / yarn / bun 用各自的全局更新命令 |
+| 安装方式     | 命令                  | 影响范围                                                  |
+| ------------ | --------------------- | --------------------------------------------------------- |
+| 脚本（推荐） | `sdkvm upgrade`       | 只替换 `$SDKVM_HOME/cli`。runtime 与已安装的 SDK 保持不变 |
+| npm 等       | `npm update -g sdkvm` | 只更新 CLI。pnpm / yarn / bun 用各自的全局更新命令        |
 
 数据目录与 CLI 升级无关。脚本安装也可以重新执行安装脚本。
 
@@ -186,18 +186,18 @@ Java 使用裸命令（`sdkvm install`）或 `sdkvm java`，两者等价。Go、
 
 ### 命令速查
 
-| 命令 | 作用 |
-|---|---|
-| `sdkvm install <version>` | 安装 Java（等于 `sdkvm java install`） |
-| `sdkvm use <version>` | 切换当前 Java |
-| `sdkvm ls` / `sdkvm ls -r` | 列出已安装版本 / 可安装版本线 |
-| `sdkvm current` | 显示全部 SDK 的当前版本 |
-| `sdkvm uninstall <version>` | 卸载一个版本 |
+| 命令                                              | 作用                                               |
+| ------------------------------------------------- | -------------------------------------------------- |
+| `sdkvm install <version>`                         | 安装 Java（等于 `sdkvm java install`）             |
+| `sdkvm use <version>`                             | 切换当前 Java                                      |
+| `sdkvm ls` / `sdkvm ls -r`                        | 列出已安装版本 / 可安装版本线                      |
+| `sdkvm current`                                   | 显示全部 SDK 的当前版本                            |
+| `sdkvm uninstall <version>`                       | 卸载一个版本                                       |
 | `sdkvm mirror ls\|use\|current\|show\|set\|unset` | 管理 SDK 下载镜像站 / URL（安装包，不是 npm 包源） |
-| `sdkvm nrm ls\|use\|current\|add\|del\|test` | 管理用户级 npm registry（类似 nrm） |
-| `sdkvm java\|go\|flutter\|node …` | 各 SDK 的完整命令组 |
-| `sdkvm version` | 打印 CLI 版本（同 `sdkvm --version`） |
-| `sdkvm upgrade` | 升级 CLI。见[升级](#升级) |
+| `sdkvm nrm ls\|use\|current\|add\|del\|test`      | 管理用户级 npm registry（类似 nrm）                |
+| `sdkvm java\|go\|flutter\|node …`                 | 各 SDK 的完整命令组                                |
+| `sdkvm version`                                   | 打印 CLI 版本（同 `sdkvm --version`）              |
+| `sdkvm upgrade`                                   | 升级 CLI。见[升级](#升级)                          |
 
 版本写法：
 
@@ -221,10 +221,10 @@ sdkvm installed Temurin 21.0.12.1 → ~/.sdkvm/jdks/temurin-21.0.12.1
 sdkvm switch to it: sdkvm use 21
 ```
 
-| 选项 | 说明 |
-|---|---|
+| 选项            | 说明                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------- |
 | `--vendor <id>` | Java：`temurin`（默认）/ `zulu` / `corretto`。Go 为 `golang`，Flutter 为 `flutter`，Node.js 为 `nodejs` |
-| `--force` | 已安装时删除并重装。默认跳过已安装版本 |
+| `--force`       | 已安装时删除并重装。默认跳过已安装版本                                                                  |
 
 校验失败或解压异常时，半成品目录和缓存会被清掉。下载超时是 60 秒无数据，不是总时长上限。
 
@@ -297,11 +297,11 @@ sdkvm go mirror use aliyun
 sdkvm node mirror use official   # 恢复该类型官方源
 ```
 
-| 动作 | 说明 |
-|---|---|
-| `ls` / `current` / `show` | 查看本类型可用站与当前配置 |
-| `use <site>` | 一键切换内置站（`nju` / `tuna` / `aliyun` / `huawei` / `official`） |
-| `set [vendor] <url>` / `unset` | 手填或清除 URL |
+| 动作                           | 说明                                                                |
+| ------------------------------ | ------------------------------------------------------------------- |
+| `ls` / `current` / `show`      | 查看本类型可用站与当前配置                                          |
+| `use <site>`                   | 一键切换内置站（`nju` / `tuna` / `aliyun` / `huawei` / `official`） |
+| `set [vendor] <url>` / `unset` | 手填或清除 URL                                                      |
 
 站点覆盖与手填示例见[镜像与 npm 源](#镜像与-npm-源)。
 
@@ -324,14 +324,14 @@ sdkvm nrm test
 
 `install`、`use`、`uninstall` 共用下表。未列出的组合会被拒绝并给出改写提示。
 
-| 语法 | Java | Go | Flutter | Node.js | 示例 |
-|---|---|---|---|---|---|
-| `<major>` | 该大版本最新补丁 | — | — | 该 major 最新 | `21`、`22` |
-| `<major.minor>` | — | 该 minor 线最新补丁 | stable 通道该 minor 线最新补丁 | — | `1.24`、`3.47` |
-| `lts` | 最新 LTS 大版本 | — | — | 最新 LTS 线（当前 24 Krypton） | `lts` |
-| `latest` | — | 最新稳定版 | stable 最新，不含 beta | 最新 Current | `latest` |
-| `<full-version>` | 精确版本或前缀 | 精确版本 | 精确版本，可含 prerelease | 精确版本 | `21.0.5+11`、`1.24.5`、`3.49.0-0.1.pre`、`22.20.0` |
-| `<vendor>-…` | 限定发行版 | 同左 | 同左 | 同左 | `zulu-21`、`golang-1.24`、`nodejs-22.20.0` |
+| 语法             | Java             | Go                  | Flutter                        | Node.js                        | 示例                                               |
+| ---------------- | ---------------- | ------------------- | ------------------------------ | ------------------------------ | -------------------------------------------------- |
+| `<major>`        | 该大版本最新补丁 | —                   | —                              | 该 major 最新                  | `21`、`22`                                         |
+| `<major.minor>`  | —                | 该 minor 线最新补丁 | stable 通道该 minor 线最新补丁 | —                              | `1.24`、`3.47`                                     |
+| `lts`            | 最新 LTS 大版本  | —                   | —                              | 最新 LTS 线（当前 24 Krypton） | `lts`                                              |
+| `latest`         | —                | 最新稳定版          | stable 最新，不含 beta         | 最新 Current                   | `latest`                                           |
+| `<full-version>` | 精确版本或前缀   | 精确版本            | 精确版本，可含 prerelease      | 精确版本                       | `21.0.5+11`、`1.24.5`、`3.49.0-0.1.pre`、`22.20.0` |
+| `<vendor>-…`     | 限定发行版       | 同左                | 同左                           | 同左                           | `zulu-21`、`golang-1.24`、`nodejs-22.20.0`         |
 
 匹配规则：
 
@@ -420,23 +420,23 @@ Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变�
 }
 ```
 
-| 字段 | 说明 | 默认值 |
-|---|---|---|
-| `version` | schema 版本 | `1` |
-| `defaultVendor` | Java 省略厂商前缀时的发行版 | `"temurin"` |
-| `mirror` | 厂商 id 到镜像根 URL。id 在全部 SDK 中唯一 | `{}` |
-| `npmRegistries` | `sdkvm nrm add` 写入的自定义 npm 源 | `{}` |
+| 字段            | 说明                                       | 默认值      |
+| --------------- | ------------------------------------------ | ----------- |
+| `version`       | schema 版本                                | `1`         |
+| `defaultVendor` | Java 省略厂商前缀时的发行版                | `"temurin"` |
+| `mirror`        | 厂商 id 到镜像根 URL。id 在全部 SDK 中唯一 | `{}`        |
+| `npmRegistries` | `sdkvm nrm add` 写入的自定义 npm 源        | `{}`        |
 
 ### 环境变量
 
-| 变量 | 说明 |
-|---|---|
-| `SDKVM_HOME` | 数据根目录，默认 `~/.sdkvm` |
-| `SDKVM_MIRROR` | 临时镜像，优先级高于配置文件，不写入配置 |
-| `SDKVM_QUIET` | 非空时抑制 info 与 warn |
-| `SDKVM_NODE_DIST` | 安装脚本使用的 Node 发行根 URL |
+| 变量                 | 说明                                                    |
+| -------------------- | ------------------------------------------------------- |
+| `SDKVM_HOME`         | 数据根目录，默认 `~/.sdkvm`                             |
+| `SDKVM_MIRROR`       | 临时镜像，优先级高于配置文件，不写入配置                |
+| `SDKVM_QUIET`        | 非空时抑制 info 与 warn                                 |
+| `SDKVM_NODE_DIST`    | 安装脚本使用的 Node 发行根 URL                          |
 | `SDKVM_RELEASE_BASE` | 安装脚本与 `sdkvm upgrade` 使用的 GitHub Release 根 URL |
-| `SDKVM_RUNTIME_NODE` | 安装脚本内置的 Node 版本，默认 `22.20.0` |
+| `SDKVM_RUNTIME_NODE` | 安装脚本内置的 Node 版本，默认 `22.20.0`                |
 
 镜像优先级：`SDKVM_MIRROR` > `config.mirror[<vendor>]` > 官方源。详见[镜像与 npm 源](#镜像与-npm-源)。
 
@@ -444,11 +444,11 @@ Windows 上，四个 `current-*` 都是 junction。`use` 把用户级环境变�
 
 两套独立能力，不要混用：
 
-| | `sdkvm mirror` | `sdkvm nrm` |
-|---|---|---|
+|        | `sdkvm mirror`                               | `sdkvm nrm`         |
+| ------ | -------------------------------------------- | ------------------- |
 | 改什么 | JDK / Go / Flutter / Node **安装包**下载地址 | **npm 包** registry |
-| 影响 | `sdkvm … install` | `npm install` |
-| 作用域 | 按 SDK 类型分别设置 | 用户级全局 |
+| 影响   | `sdkvm … install`                            | `npm install`       |
+| 作用域 | 按 SDK 类型分别设置                          | 用户级全局          |
 
 ### SDK 安装包镜像
 
@@ -461,13 +461,13 @@ sdkvm flutter mirror use nju
 sdkvm node mirror use nju
 ```
 
-| 站点 | Java (temurin) | Go | Flutter | Node.js |
-|---|---|---|---|---|
-| `nju` | ✓ | ✓ | ✓ | ✓ |
-| `tuna` | ✓ | — | ✓ | —（归档不全，未收录） |
-| `aliyun` | — | ✓ | — | ✓ |
-| `huawei` | — | — | — | ✓ |
-| `official` | 清空本类型 | 清空本类型 | 清空本类型 | 清空本类型 |
+| 站点       | Java (temurin) | Go         | Flutter    | Node.js               |
+| ---------- | -------------- | ---------- | ---------- | --------------------- |
+| `nju`      | ✓              | ✓          | ✓          | ✓                     |
+| `tuna`     | ✓              | —          | ✓          | —（归档不全，未收录） |
+| `aliyun`   | —              | ✓          | —          | ✓                     |
+| `huawei`   | —              | —          | —          | ✓                     |
+| `official` | 清空本类型     | 清空本类型 | 清空本类型 | 清空本类型            |
 
 手填 URL 或临时覆盖：
 
@@ -478,13 +478,13 @@ SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 
 优先级：`SDKVM_MIRROR` > `config.mirror[<vendor>]` > 官方源。镜像只替换归档下载地址；版本元数据与校验和仍走官方 API。走镜像时若官方校验源不可达，安装会**硬失败**（避免无法核对的包被放行）。
 
-| 厂商 | 说明 |
-|---|---|
-| Temurin | Adoptium 目录结构；已验证 [NJU](https://mirrors.nju.edu.cn/adoptium)、[TUNA](https://mirrors.tuna.tsinghua.edu.cn/Adoptium) |
-| Go | 文件名拼在根 URL 后；如 `nju` / `aliyun` |
-| Flutter | 桶前缀替换；已验证 [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release)。不要用 `storage.flutter-io.cn`（无发布清单） |
-| Node.js | 前缀替换；已验证 [NJU](https://mirror.nju.edu.cn/nodejs-release)。不要用 TUNA nodejs-release（缺归档） |
-| Zulu、Corretto | 官方 CDN 直发，暂不支持镜像 |
+| 厂商           | 说明                                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Temurin        | Adoptium 目录结构；已验证 [NJU](https://mirrors.nju.edu.cn/adoptium)、[TUNA](https://mirrors.tuna.tsinghua.edu.cn/Adoptium)     |
+| Go             | 文件名拼在根 URL 后；如 `nju` / `aliyun`                                                                                        |
+| Flutter        | 桶前缀替换；已验证 [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release)。不要用 `storage.flutter-io.cn`（无发布清单） |
+| Node.js        | 前缀替换；已验证 [NJU](https://mirror.nju.edu.cn/nodejs-release)。不要用 TUNA nodejs-release（缺归档）                          |
+| Zulu、Corretto | 官方 CDN 直发，暂不支持镜像                                                                                                     |
 
 ### npm registry
 
@@ -572,6 +572,7 @@ rm -rf ~/.sdkvm
 ```
 
 同时删除 shell 配置里：
+
 - `# >>> sdkvm path >>>` … `# <<< sdkvm path <<<`
 - 各 SDK 的 `>>> sdkvm java|go|flutter|node init >>>` … `<<< … <<<`
 
@@ -605,4 +606,4 @@ src/
 
 ## 许可证
 
-[MIT](./LICENSE) © QINJIN
+[MIT](./LICENSE) © 秦佬湿

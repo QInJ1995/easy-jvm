@@ -1,0 +1,444 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { loadConfig, updateConfig } from '../core/config.js';
+import { envGet } from '../core/env.js';
+import { SdkvmError } from '../util/errors.js';
+import { log } from '../ui/log.js';
+
+export interface MavenRegistryEntry {
+  /** 列表展示名 */
+  name: string;
+  url: string;
+  /** use 可用、ls 不单独占一行 */
+  aliases?: readonly string[];
+  list: boolean;
+  custom?: boolean;
+}
+
+/**
+ * 依赖仓库镜像，与 `sdkvm maven mirror`（安装包）无关。
+ * `official` 表示删掉 sdkvm 标记块，不写入指向 Central 的 mirror。
+ * aliyun 用聚合仓 public，不是安装包用的 repository/central。
+ */
+export const MAVEN_REGISTRY_PRESETS: readonly MavenRegistryEntry[] = [
+  { name: 'official', url: 'https://repo.maven.apache.org/maven2/', list: true },
+  {
+    name: 'aliyun',
+    url: 'https://maven.aliyun.com/repository/public/',
+    aliases: ['ali'],
+    list: true,
+  },
+  { name: 'huawei', url: 'https://repo.huaweicloud.com/repository/maven/', list: true },
+  {
+    name: 'tencent',
+    url: 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/',
+    list: true,
+  },
+];
+
+const NAME_RE = /^[A-Za-z][A-Za-z0-9_-]*$/;
+const TEST_TIMEOUT_MS = 5_000;
+const PROBE_POM = 'org/apache/maven/maven-artifact/3.9.9/maven-artifact-3.9.9.pom';
+
+export const MRM_BEGIN = '<!-- >>> sdkvm mrm >>> -->';
+export const MRM_END = '<!-- <<< sdkvm mrm <<< -->';
+
+const SOURCE_LABEL = {
+  flag: '--settings',
+  env: 'SDKVM_M2_SETTINGS',
+  config: 'config.mavenSettings',
+  default: 'default',
+} as const;
+
+export type SettingsSource = keyof typeof SOURCE_LABEL;
+
+export interface SettingsTarget {
+  file: string;
+  source: SettingsSource;
+}
+
+export type MavenRepoProbe = (url: string) => Promise<number>;
+
+export function normalizeRegistryUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '').toLowerCase();
+}
+
+export function defaultMavenSettingsPath(): string {
+  return path.join(os.homedir(), '.m2', 'settings.xml');
+}
+
+/** `~` 展开后相对 cwd 解析为绝对路径。 */
+export function expandSettingsPath(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) {
+    throw new SdkvmError('settings path is empty');
+  }
+  let expanded = trimmed;
+  if (expanded === '~') expanded = os.homedir();
+  else if (expanded.startsWith('~/') || expanded.startsWith('~\\')) {
+    expanded = path.join(os.homedir(), expanded.slice(2));
+  }
+  return path.resolve(expanded);
+}
+
+/**
+ * `--settings` > `SDKVM_M2_SETTINGS` > `config.mavenSettings` > `~/.m2/settings.xml`。
+ * 前两项不写入配置。
+ */
+export function resolveSettingsTarget(flag?: string): SettingsTarget {
+  if (flag?.trim()) return { file: expandSettingsPath(flag), source: 'flag' };
+  const env = envGet('SDKVM_M2_SETTINGS');
+  if (env) return { file: expandSettingsPath(env), source: 'env' };
+  const configured = loadConfig().mavenSettings.trim();
+  if (configured) return { file: expandSettingsPath(configured), source: 'config' };
+  return { file: defaultMavenSettingsPath(), source: 'default' };
+}
+
+export function isBuiltinMavenRegistryName(name: string): boolean {
+  const key = name.trim().toLowerCase();
+  return MAVEN_REGISTRY_PRESETS.some(
+    (p) => p.name.toLowerCase() === key || p.aliases?.some((a) => a.toLowerCase() === key),
+  );
+}
+
+export function listMavenRegistries(): MavenRegistryEntry[] {
+  const custom = loadConfig().mavenRegistries;
+  const out: MavenRegistryEntry[] = [...MAVEN_REGISTRY_PRESETS];
+  for (const [name, url] of Object.entries(custom)) {
+    out.push({ name, url, list: true, custom: true });
+  }
+  return out;
+}
+
+export function findMavenRegistry(name: string): MavenRegistryEntry | undefined {
+  const key = name.trim().toLowerCase();
+  return listMavenRegistries().find(
+    (p) => p.name.toLowerCase() === key || p.aliases?.some((a) => a.toLowerCase() === key),
+  );
+}
+
+/** 标记块里的 URL 命中可展示源；没有标记块时由调用方视为 official。 */
+export function matchListedMavenRegistry(registryUrl: string): string | null {
+  const norm = normalizeRegistryUrl(registryUrl);
+  const hit = listMavenRegistries().find(
+    (p) => p.list && p.name !== 'official' && normalizeRegistryUrl(p.url) === norm,
+  );
+  return hit?.name ?? null;
+}
+
+export function formatMrmListLine(name: string, url: string, current: boolean): string {
+  const mark = current ? '*' : ' ';
+  const padded = `${name} `.padEnd(14, '-');
+  return `${mark} ${padded} ${url}`;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function countOf(hay: string, needle: string): number {
+  let n = 0;
+  let i = 0;
+  while ((i = hay.indexOf(needle, i)) !== -1) {
+    n += 1;
+    i += needle.length;
+  }
+  return n;
+}
+
+function assertMarkers(content: string): void {
+  const begin = countOf(content, MRM_BEGIN);
+  const end = countOf(content, MRM_END);
+  if (begin !== end || begin > 1) {
+    throw new SdkvmError('settings.xml has an unpaired sdkvm mrm marker', {
+      hint: 'Remove the leftover <!-- >>> sdkvm mrm >>> --> comments by hand, then retry.',
+    });
+  }
+}
+
+function stripBlock(content: string): string {
+  const re = new RegExp(`\\n*${escapeRegExp(MRM_BEGIN)}[\\s\\S]*?${escapeRegExp(MRM_END)}\\n*`, 'g');
+  return content.replace(re, '\n');
+}
+
+function renderBlock(name: string, url: string): string {
+  return [
+    MRM_BEGIN,
+    '<mirror>',
+    '  <id>sdkvm</id>',
+    '  <mirrorOf>*</mirrorOf>',
+    `  <name>${name}</name>`,
+    `  <url>${url}</url>`,
+    '</mirror>',
+    MRM_END,
+  ].join('\n');
+}
+
+function ensureTrailingNewline(content: string): string {
+  if (!content) return '';
+  return content.endsWith('\n') ? content : `${content}\n`;
+}
+
+function insertBlock(content: string, block: string): string {
+  const selfClose = /<mirrors\b[^>]*\/>/i.exec(content);
+  if (selfClose) {
+    const open = selfClose[0].slice(0, -2).replace(/\s+$/, '');
+    const replacement = `${open}>\n${block}\n</mirrors>`;
+    return content.slice(0, selfClose.index) + replacement + content.slice(selfClose.index + selfClose[0].length);
+  }
+  const open = /<mirrors\b[^>]*>/i.exec(content);
+  if (open) {
+    const idx = open.index + open[0].length;
+    return `${content.slice(0, idx)}\n${block}${content.slice(idx)}`;
+  }
+  return content.replace(/<\/settings>/i, `<mirrors>\n${block}\n</mirrors>\n</settings>`);
+}
+
+function minimalSettings(block: string): string {
+  return `<settings>\n  <mirrors>\n${block}\n  </mirrors>\n</settings>\n`;
+}
+
+/**
+ * `mirror === null` 只删除标记块。空文件且要写入时生成最小 settings。
+ * 已有 `<mirrors>` 时插到第一个子节点；没有则在 `</settings>` 前补一整段。
+ */
+export function applyMrmBlock(content: string, mirror: { name: string; url: string } | null): string {
+  if (!content.trim()) {
+    return mirror ? minimalSettings(renderBlock(mirror.name, mirror.url)) : '';
+  }
+  assertMarkers(content);
+  if (!/<\/settings\s*>/i.test(content)) {
+    throw new SdkvmError('settings.xml has no </settings>', {
+      hint: 'Fix the file, or point sdkvm mrm at another settings.xml.',
+    });
+  }
+  const hadBlock = content.includes(MRM_BEGIN);
+  const stripped = stripBlock(content);
+  if (!mirror) return hadBlock ? ensureTrailingNewline(stripped) : content;
+  return ensureTrailingNewline(insertBlock(stripped, renderBlock(mirror.name, mirror.url)));
+}
+
+export function readMrmUrl(content: string): string | null {
+  if (!content.trim()) return null;
+  assertMarkers(content);
+  const re = new RegExp(`${escapeRegExp(MRM_BEGIN)}([\\s\\S]*?)${escapeRegExp(MRM_END)}`);
+  const body = re.exec(content)?.[1];
+  if (body === undefined) return null;
+  const url = /<url>\s*([^<\s]+)\s*<\/url>/.exec(body)?.[1];
+  if (!url) {
+    throw new SdkvmError('sdkvm mrm block has no <url>', {
+      hint: 'Remove the sdkvm mrm marker block, then run sdkvm mrm use again.',
+    });
+  }
+  return url;
+}
+
+function settingsLine(target: SettingsTarget): string {
+  return `settings ${target.file} (${SOURCE_LABEL[target.source]})`;
+}
+
+function readFileIfExists(file: string): string {
+  if (fs.existsSync(file) && fs.statSync(file).isDirectory()) {
+    throw new SdkvmError(`${file} is a directory`, {
+      hint: 'Pass a settings.xml file path.',
+    });
+  }
+  if (!fs.existsSync(file)) return '';
+  return fs.readFileSync(file, 'utf8');
+}
+
+function writeSettings(file: string, content: string): void {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tmp-${process.pid}`;
+  fs.writeFileSync(tmp, ensureTrailingNewline(content));
+  fs.renameSync(tmp, file);
+}
+
+function officialUrl(): string {
+  return MAVEN_REGISTRY_PRESETS[0]?.url ?? 'https://repo.maven.apache.org/maven2/';
+}
+
+function activeMirror(file: string): { name: string; url: string } {
+  const content = readFileIfExists(file);
+  const url = readMrmUrl(content);
+  if (!url) return { name: 'official', url: officialUrl() };
+  return { name: matchListedMavenRegistry(url) ?? 'custom', url };
+}
+
+function assertRepoUrl(raw: string): URL {
+  const trimmed = raw.trim();
+  if (/[<>&]/.test(trimmed)) {
+    throw new SdkvmError('Repository URL cannot contain <, >, or &', {
+      hint: 'Those characters would break settings.xml. Use a plain http(s) repository URL.',
+    });
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(trimmed);
+  } catch {
+    throw new SdkvmError(`Invalid URL: ${raw}`);
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new SdkvmError(`Invalid URL protocol: ${parsed.protocol}`, {
+      hint: 'Expected http:// or https://',
+    });
+  }
+  parsed.pathname = parsed.pathname.replace(/\/+$/, '') + '/';
+  return parsed;
+}
+
+function unknownRegistry(name: string): SdkvmError {
+  const names = listMavenRegistries()
+    .flatMap((p) => [p.name, ...(p.aliases ?? [])])
+    .join(', ');
+  return new SdkvmError(`Unknown Maven registry "${name}"`, {
+    hint: `Available: ${names}`,
+  });
+}
+
+export function mrmLs(opts: { settings?: string } = {}): void {
+  const target = resolveSettingsTarget(opts.settings);
+  const active = activeMirror(target.file);
+  log.info(settingsLine(target));
+  for (const p of listMavenRegistries()) {
+    if (!p.list) continue;
+    log.raw(formatMrmListLine(p.name, p.url, active.name === p.name));
+  }
+  if (active.name === 'custom') {
+    log.raw(formatMrmListLine('custom', active.url, true));
+  }
+}
+
+export function mrmCurrent(opts: { settings?: string } = {}): void {
+  const target = resolveSettingsTarget(opts.settings);
+  const active = activeMirror(target.file);
+  log.info(settingsLine(target));
+  log.raw(`${active.name} → ${active.url}`);
+}
+
+export function mrmUse(name: string, opts: { settings?: string } = {}): void {
+  const entry = findMavenRegistry(name);
+  if (!entry) throw unknownRegistry(name);
+  const target = resolveSettingsTarget(opts.settings);
+  const existing = readFileIfExists(target.file);
+  const next =
+    entry.name === 'official'
+      ? applyMrmBlock(existing, null)
+      : applyMrmBlock(existing, { name: entry.name, url: entry.url });
+  if (next !== existing) writeSettings(target.file, next);
+  if (entry.name === 'official') {
+    log.ok('maven mirror → official (Central, no sdkvm mirror)');
+  } else {
+    log.ok(`maven mirror → ${entry.name} (${entry.url})`);
+  }
+  log.info(settingsLine(target));
+  if (path.normalize(target.file) !== path.normalize(defaultMavenSettingsPath())) {
+    log.info(`Maven reads ~/.m2/settings.xml unless you pass: mvn -s ${target.file}`);
+  }
+}
+
+export function mrmAdd(name: string, url: string): void {
+  const key = name.trim();
+  if (!NAME_RE.test(key)) {
+    throw new SdkvmError(`Invalid registry name "${name}"`, {
+      hint: 'Use letters, digits, _ or -; must start with a letter',
+    });
+  }
+  if (isBuiltinMavenRegistryName(key)) {
+    throw new SdkvmError(`Cannot overwrite built-in registry "${key}"`, {
+      hint: `Pick another name, or use: sdkvm mrm use ${key}`,
+    });
+  }
+  const normalized = assertRepoUrl(url).href;
+  updateConfig((config) => {
+    const existingKey = Object.keys(config.mavenRegistries).find((k) => k.toLowerCase() === key.toLowerCase());
+    if (existingKey && existingKey !== key) delete config.mavenRegistries[existingKey];
+    config.mavenRegistries[key] = normalized;
+  });
+  log.ok(`added Maven registry ${key} → ${normalized}`);
+}
+
+export function mrmDel(name: string): void {
+  const key = name.trim();
+  if (isBuiltinMavenRegistryName(key)) {
+    throw new SdkvmError(`Cannot delete built-in registry "${key}"`);
+  }
+  let deleted: string | undefined;
+  updateConfig((config) => {
+    const existing = Object.keys(config.mavenRegistries).find((k) => k.toLowerCase() === key.toLowerCase());
+    if (!existing) {
+      throw new SdkvmError(`Unknown custom registry "${name}"`, {
+        hint: 'Only registries added with sdkvm mrm add can be deleted',
+      });
+    }
+    delete config.mavenRegistries[existing];
+    deleted = existing;
+  });
+  log.ok(`deleted Maven registry ${deleted}`);
+}
+
+/** GET 一个已知 POM。5xx、4xx 或网络错误记为 Fetch Error，命令本身仍成功。 */
+export async function defaultMavenRepoProbe(url: string): Promise<number> {
+  const target = `${url.replace(/\/+$/, '')}/${PROBE_POM}`;
+  const started = Date.now();
+  const res = await fetch(target, {
+    method: 'GET',
+    redirect: 'follow',
+    signal: AbortSignal.timeout(TEST_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return Date.now() - started;
+}
+
+export async function mrmTest(
+  name: string | undefined,
+  opts: { settings?: string; probe?: MavenRepoProbe } = {},
+): Promise<void> {
+  const probe = opts.probe ?? defaultMavenRepoProbe;
+  const target = resolveSettingsTarget(opts.settings);
+  const active = activeMirror(target.file);
+  let targets = listMavenRegistries().filter((p) => p.list);
+  if (name) {
+    const entry = findMavenRegistry(name);
+    if (!entry) throw unknownRegistry(name);
+    targets = [{ ...entry, list: true }];
+  }
+  for (const p of targets) {
+    const isCurrent = active.name === p.name || normalizeRegistryUrl(p.url) === normalizeRegistryUrl(active.url);
+    try {
+      const ms = await probe(p.url);
+      log.raw(formatMrmListLine(p.name, `${ms} ms`, isCurrent));
+    } catch (err) {
+      const detail = err instanceof Error ? err.message.split('\n')[0] : String(err);
+      log.raw(formatMrmListLine(p.name, `Fetch Error (${detail})`, isCurrent));
+    }
+  }
+}
+
+export function mrmSettings(arg: string | undefined, opts: { settings?: string } = {}): void {
+  if (arg === undefined) {
+    log.info(settingsLine(resolveSettingsTarget(opts.settings)));
+    return;
+  }
+  if (arg === 'unset') {
+    updateConfig((config) => {
+      config.mavenSettings = '';
+    });
+    log.ok('cleared config.mavenSettings');
+    const target = resolveSettingsTarget(opts.settings);
+    if (target.source !== 'default') log.info(settingsLine(target));
+    return;
+  }
+  const abs = expandSettingsPath(arg);
+  if (fs.existsSync(abs) && fs.statSync(abs).isDirectory()) {
+    throw new SdkvmError(`${abs} is a directory`, {
+      hint: 'Pass a settings.xml file path.',
+    });
+  }
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  updateConfig((config) => {
+    config.mavenSettings = abs;
+  });
+  log.ok(`maven settings → ${abs}`);
+}

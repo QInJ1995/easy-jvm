@@ -21,16 +21,22 @@ describe('config', () => {
     const c = loadConfig();
     expect(c.defaultVendor).toBe('temurin');
     expect(c.mirror.temurin).toBeUndefined();
+    expect(c.mavenRegistries).toEqual({});
+    expect(c.mavenSettings).toBe('');
   });
 
   it('roundtrip', () => {
     const c = loadConfig();
     c.mirror.temurin = 'https://mirrors.nju.edu.cn/adoptium';
     c.npmRegistries.myprivate = 'http://xxx/registry/';
+    c.mavenRegistries.myrepo = 'https://example.com/maven/';
+    c.mavenSettings = '/tmp/settings.xml';
     saveConfig(c);
     const loaded = loadConfig();
     expect(loaded.mirror.temurin).toBe('https://mirrors.nju.edu.cn/adoptium');
     expect(loaded.npmRegistries.myprivate).toBe('http://xxx/registry/');
+    expect(loaded.mavenRegistries.myrepo).toBe('https://example.com/maven/');
+    expect(loaded.mavenSettings).toBe('/tmp/settings.xml');
   });
 
   it('updateConfig mutates under lock', () => {

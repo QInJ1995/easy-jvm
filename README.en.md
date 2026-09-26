@@ -148,6 +148,7 @@ sdkvm flutter mirror use nju
 sdkvm node mirror use nju
 sdkvm maven mirror use aliyun
 sdkvm nrm use taobao          # npm install only; independent of mirror above
+sdkvm mrm use aliyun          # mvn dependency downloads only; writes settings.xml
 
 # Java
 sdkvm install lts
@@ -185,7 +186,7 @@ sdkvm uninstall zulu-21
 
 After the first `use`, **open a new terminal**, or on macOS / Linux run `source ~/.zshrc` (or the matching bash rc). Restart the IDE so it picks up the new environment variables.
 
-Day-to-day: `install` → `use` → `current` / `ls`. Mirrors and npm registries: [Mirrors and npm registry](#mirrors-and-npm-registry).
+Day-to-day: `install` → `use` → `current` / `ls`. Install mirrors, the npm registry, and Maven dependency mirrors: [Mirrors and npm registry](#mirrors-and-npm-registry).
 
 ## Commands
 
@@ -202,6 +203,7 @@ Java accepts bare commands (`sdkvm install`) or `sdkvm java`. Go, Flutter, Node.
 | `sdkvm uninstall <version>`                       | Remove one version                                                                       |
 | `sdkvm mirror ls\|use\|current\|show\|set\|unset` | Manage SDK download mirror sites / URLs (install archives, not the npm package registry) |
 | `sdkvm nrm ls\|use\|current\|add\|del\|test`      | Manage the user-level npm registry (like nrm)                                            |
+| `sdkvm mrm ls\|use\|current\|add\|del\|test\|settings` | Manage Maven dependency mirrors (`settings.xml`, like nrm)                         |
 | `sdkvm java\|go\|flutter\|node\|maven …`          | Full command group for that SDK                                                          |
 | `sdkvm version`                                   | Print the CLI version (same as `sdkvm --version`)                                        |
 | `sdkvm upgrade`                                   | Upgrade the CLI. See [Upgrade](#upgrade)                                                 |
@@ -331,6 +333,25 @@ sdkvm nrm test
 
 Built-in names: `npm`, `yarn`, `taobao` (alias `npmmirror`), `tencent`, `cnpm`, `huawei`, `npmMirror`. `npm` must be on `PATH`.
 
+### `sdkvm mrm`
+
+Manages mirrors for Maven **dependencies and plugins** by writing a `<mirror>` into `settings.xml`. The UX follows `sdkvm nrm`. It does not invoke `mvn`, store credentials, or change `MAVEN_HOME`. Independent of `sdkvm maven mirror`, which only changes the Maven **install archive** URL.
+
+```sh
+sdkvm mrm ls
+sdkvm mrm use aliyun
+sdkvm mrm use official
+sdkvm mrm add myrepo https://example.com/maven
+sdkvm mrm del myrepo
+sdkvm mrm test
+sdkvm mrm settings
+sdkvm mrm settings ~/.m2/settings.xml
+sdkvm mrm settings unset
+sdkvm mrm --settings /tmp/settings.xml use aliyun
+```
+
+Built-in names: `official` (remove the sdkvm marker block and keep your other mirrors), `aliyun` (alias `ali`, the aggregate repo `repository/public`), `huawei`, `tencent`. Only the `<!-- >>> sdkvm mrm >>> -->` block is edited (`id=sdkvm`, `mirrorOf=*`). Path precedence: `--settings` > `SDKVM_M2_SETTINGS` > `config.mavenSettings` > `~/.m2/settings.xml`. The first two are not saved. When the path is not Maven's default, `use` prints `mvn -s <path>`.
+
 ## Version syntax
 
 `install`, `use`, and `uninstall` share this table. Combinations that are not listed are rejected with a rewrite hint.
@@ -436,7 +457,11 @@ Path: `~/.sdkvm/config.json`. A corrupt file is renamed to `config.json.bak` and
   },
   "npmRegistries": {
     "myprivate": "http://xxx/registry/"
-  }
+  },
+  "mavenRegistries": {
+    "myrepo": "https://example.com/maven/"
+  },
+  "mavenSettings": ""
 }
 ```
 
@@ -446,6 +471,8 @@ Path: `~/.sdkvm/config.json`. A corrupt file is renamed to `config.json.bak` and
 | `defaultVendor` | Java distribution used when the vendor prefix is omitted | `"temurin"` |
 | `mirror`        | Vendor id to mirror root URL. Ids are unique across SDKs | `{}`        |
 | `npmRegistries` | Custom npm registries from `sdkvm nrm add`               | `{}`        |
+| `mavenRegistries` | Custom Maven repositories from `sdkvm mrm add`         | `{}`        |
+| `mavenSettings` | Absolute `settings.xml` path; empty uses the default    | `""`        |
 
 ### Environment variables
 
@@ -453,6 +480,7 @@ Path: `~/.sdkvm/config.json`. A corrupt file is renamed to `config.json.bak` and
 | -------------------- | ------------------------------------------------------------------ |
 | `SDKVM_HOME`         | Data root. Default `~/.sdkvm`                                      |
 | `SDKVM_MIRROR`       | One-shot mirror. Wins over the config file and is not saved        |
+| `SDKVM_M2_SETTINGS`  | `settings.xml` for this `sdkvm mrm` run; not saved                 |
 | `SDKVM_QUIET`        | Non-empty suppresses info and warn logs                            |
 | `SDKVM_NODE_DIST`    | Node distribution root used by the install script                  |
 | `SDKVM_RELEASE_BASE` | GitHub Release root used by the install script and `sdkvm upgrade` |
@@ -462,13 +490,13 @@ Mirror precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official source.
 
 ## Mirrors and npm registry
 
-Two independent features:
+Three independent features:
 
-|         | `sdkvm mirror`                                     | `sdkvm nrm`              |
-| ------- | -------------------------------------------------- | ------------------------ |
-| Changes | JDK / Go / Flutter / Node / Maven **install archive** URLs | **npm package** registry |
-| Affects | `sdkvm … install`                                  | `npm install`            |
-| Scope   | Per SDK type                                       | User-level global        |
+|         | `sdkvm mirror`                                              | `sdkvm nrm`              | `sdkvm mrm`                                      |
+| ------- | ----------------------------------------------------------- | ------------------------ | ------------------------------------------------ |
+| Changes | JDK / Go / Flutter / Node / Maven **install archive** URLs  | **npm package** registry | Maven **dependency / plugin** repositories       |
+| Affects | `sdkvm … install`                                           | `npm install`            | `mvn` dependency resolution (`settings.xml`)     |
+| Scope   | Per SDK type                                                | User-level global        | One `settings.xml`                               |
 
 ### SDK install mirrors
 
@@ -516,6 +544,17 @@ sdkvm nrm use npm      # official
 sdkvm nrm test         # latency
 ```
 
+### Maven dependency mirrors
+
+`sdkvm mrm` writes or removes a marker block in `settings.xml` (`mirrorOf=*`, `id=sdkvm`). `use official` deletes only that block; other mirrors, servers, and profiles stay. Aliyun here is the aggregate repo `repository/public`, not the install-archive repo `repository/central`.
+
+```sh
+sdkvm mrm use aliyun    # dependencies via Aliyun public
+sdkvm mrm use official  # remove the sdkvm mirror block
+sdkvm mrm settings ~/work/settings.xml
+mvn -s ~/work/settings.xml compile   # pass -s yourself when the path is not the default
+```
+
 ## Security
 
 - URLs are resolved from official APIs: Adoptium, Azul Metadata, Corretto, go.dev/dl, Flutter releases, nodejs.org/dist `index.json`, and Maven Central `maven-metadata.xml`. Search pages are not scraped.
@@ -558,9 +597,9 @@ Pass the full prerelease, for example `sdkvm flutter install 3.49.0-0.1.pre`. `l
 
 A script install launches the CLI with `~/.sdkvm/runtime`, so `sdkvm node use` does not affect it. An npm global install follows the `node` on `PATH`. A Node older than 18.15 can stop the CLI; `sdkvm node use 22` brings it back.
 
-### What is the difference between `nrm` and `mirror`?
+### What is the difference between `mirror`, `nrm`, and `mrm`?
 
-See [Mirrors and npm registry](#mirrors-and-npm-registry): `nrm` is for npm packages; `mirror` is for SDK install archives.
+See [Mirrors and npm registry](#mirrors-and-npm-registry): `mirror` is for SDK install archives, `nrm` is for npm packages, and `mrm` is for Maven dependency repositories (`settings.xml`).
 
 ### Proxies
 

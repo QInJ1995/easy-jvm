@@ -12,6 +12,10 @@ export interface SdkvmConfig {
   mirror: Partial<Record<string, string | null>>;
   /** 用户自定义 npm registry 名 → URL（sdkvm nrm add/del） */
   npmRegistries: Record<string, string>;
+  /** 用户自定义 Maven 依赖仓库名 → URL（sdkvm mrm add/del） */
+  mavenRegistries: Record<string, string>;
+  /** 自定义 settings.xml 绝对路径；空串表示 ~/.m2/settings.xml */
+  mavenSettings: string;
 }
 
 export const DEFAULT_CONFIG: SdkvmConfig = {
@@ -19,22 +23,31 @@ export const DEFAULT_CONFIG: SdkvmConfig = {
   defaultVendor: 'temurin',
   mirror: {},
   npmRegistries: {},
+  mavenRegistries: {},
+  mavenSettings: '',
 };
+
+function blankConfig(defaultVendor = 'temurin'): SdkvmConfig {
+  return {
+    version: 1,
+    defaultVendor,
+    mirror: {},
+    npmRegistries: {},
+    mavenRegistries: {},
+    mavenSettings: '',
+  };
+}
 
 export function loadConfig(): SdkvmConfig {
   const file = paths.config();
-  if (!fs.existsSync(file)) return { ...DEFAULT_CONFIG, mirror: {}, npmRegistries: {} };
+  if (!fs.existsSync(file)) return blankConfig();
   try {
     const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<SdkvmConfig>;
-    const config: SdkvmConfig = {
-      version: 1,
-      defaultVendor:
-        parsed.defaultVendor && (JAVA_VENDOR_IDS as readonly string[]).includes(parsed.defaultVendor)
-          ? parsed.defaultVendor
-          : 'temurin',
-      mirror: {},
-      npmRegistries: {},
-    };
+    const config = blankConfig(
+      parsed.defaultVendor && (JAVA_VENDOR_IDS as readonly string[]).includes(parsed.defaultVendor)
+        ? parsed.defaultVendor
+        : 'temurin',
+    );
     if (parsed.mirror && typeof parsed.mirror === 'object') {
       for (const [id, v] of Object.entries(parsed.mirror)) {
         if (typeof v === 'string' && v.length > 0) config.mirror[id] = v;
@@ -45,6 +58,12 @@ export function loadConfig(): SdkvmConfig {
         if (typeof v === 'string' && v.length > 0) config.npmRegistries[id] = v;
       }
     }
+    if (parsed.mavenRegistries && typeof parsed.mavenRegistries === 'object') {
+      for (const [id, v] of Object.entries(parsed.mavenRegistries)) {
+        if (typeof v === 'string' && v.length > 0) config.mavenRegistries[id] = v;
+      }
+    }
+    if (typeof parsed.mavenSettings === 'string') config.mavenSettings = parsed.mavenSettings.trim();
     return config;
   } catch (err) {
     const bak = `${file}.bak`;
@@ -55,7 +74,7 @@ export function loadConfig(): SdkvmConfig {
       // 备份失败也继续用默认值
     }
     void err;
-    return { ...DEFAULT_CONFIG, mirror: {}, npmRegistries: {} };
+    return blankConfig();
   }
 }
 
@@ -68,7 +87,7 @@ export function saveConfig(config: SdkvmConfig): void {
 }
 
 /**
- * 在全局锁内读-改-写 config，避免 mirror/nrm 并发丢更新。
+ * 在全局锁内读-改-写 config，避免 mirror/nrm/mrm 并发丢更新。
  * 调用方勿在已持有 withLock 的回调里再调（非可重入）。
  */
 export function updateConfig(mutator: (config: SdkvmConfig) => void): SdkvmConfig {

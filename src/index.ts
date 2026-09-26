@@ -10,6 +10,7 @@ import { mirrorCommand } from './cli/mirror.js';
 import { getVersion, versionCommand } from './cli/misc.js';
 import { upgradeCommand } from './cli/upgrade.js';
 import { nrmLs, nrmUse, nrmCurrent, nrmAdd, nrmDel, nrmTest } from './cli/nrm.js';
+import { mrmAdd, mrmCurrent, mrmDel, mrmLs, mrmSettings, mrmTest, mrmUse } from './cli/mrm.js';
 import { getSdkType } from './sdk/index.js';
 import type { SdkTypeId } from './sdk/types.js';
 
@@ -158,6 +159,65 @@ nrmCmd
   .argument('[name]', 'optional registry name; omit to test all')
   .action((name: string | undefined) => nrmTest(name));
 nrmCmd.action(() => nrmCmd.help());
+
+const mrmCmd = program
+  .command('mrm')
+  .description('Maven dependency mirror manager (settings.xml, like nrm)')
+  .option('--settings <path>', 'settings.xml for this invocation (not saved)');
+
+function mrmFlag(cmd: Command): string | undefined {
+  const settings = cmd.optsWithGlobals().settings as string | undefined;
+  return settings?.trim() || undefined;
+}
+
+mrmCmd
+  .command('ls')
+  .alias('list')
+  .description('list Maven repository mirrors (* marks current)')
+  .action(function (this: Command) {
+    mrmLs({ settings: mrmFlag(this) });
+  });
+mrmCmd
+  .command('current')
+  .description('print the current Maven repository mirror')
+  .action(function (this: Command) {
+    mrmCurrent({ settings: mrmFlag(this) });
+  });
+mrmCmd
+  .command('use')
+  .description('switch the Maven repository mirror in settings.xml')
+  .argument('<name>', 'registry name, e.g. official / aliyun / myrepo')
+  .action(function (this: Command, name: string) {
+    mrmUse(name, { settings: mrmFlag(this) });
+  });
+mrmCmd
+  .command('add')
+  .description('add a custom Maven repository mirror')
+  .argument('<name>', 'registry name')
+  .argument('<url>', 'repository root URL')
+  .action((name: string, url: string) => mrmAdd(name, url));
+mrmCmd
+  .command('del')
+  .alias('delete')
+  .alias('rm')
+  .description('delete a custom Maven repository mirror')
+  .argument('<name>', 'custom registry name')
+  .action((name: string) => mrmDel(name));
+mrmCmd
+  .command('test')
+  .description('GET a known POM from each repository and print latency')
+  .argument('[name]', 'optional registry name; omit to test all')
+  .action(function (this: Command, name: string | undefined) {
+    return mrmTest(name, { settings: mrmFlag(this) });
+  });
+mrmCmd
+  .command('settings')
+  .description('show, set, or clear the settings.xml path (path | unset)')
+  .argument('[path]', 'absolute or ~/ path to save, or unset')
+  .action(function (this: Command, p: string | undefined) {
+    mrmSettings(p, { settings: mrmFlag(this) });
+  });
+mrmCmd.action(() => mrmCmd.help());
 
 program.parseAsync(process.argv).catch((err: unknown) => {
   const e = toSdkvmError(err);

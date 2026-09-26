@@ -148,6 +148,7 @@ sdkvm flutter mirror use nju
 sdkvm node mirror use nju
 sdkvm maven mirror use aliyun
 sdkvm nrm use taobao          # 仅影响 npm install，与上面的 mirror 无关
+sdkvm mrm use aliyun          # 仅影响 mvn 拉依赖，写入 settings.xml
 
 # Java
 sdkvm install lts
@@ -185,7 +186,7 @@ sdkvm uninstall zulu-21
 
 首次 `use` 后请**重开终端**，或在 macOS / Linux 上 `source ~/.zshrc`（bash 则 source 对应 rc）。IDE 需重启才会读到新的环境变量。
 
-日常只记三条：`install` → `use` → `current` / `ls`。镜像与 npm 源见[镜像与 npm 源](#镜像与-npm-源)。
+日常只记三条：`install` → `use` → `current` / `ls`。安装包镜像、npm 源和 Maven 依赖镜像见[镜像与 npm 源](#镜像与-npm-源)。
 
 ## 命令参考
 
@@ -202,6 +203,7 @@ Java 使用裸命令（`sdkvm install`）或 `sdkvm java`，两者等价。Go、
 | `sdkvm uninstall <version>`                       | 卸载一个版本                                       |
 | `sdkvm mirror ls\|use\|current\|show\|set\|unset` | 管理 SDK 下载镜像站 / URL（安装包，不是 npm 包源） |
 | `sdkvm nrm ls\|use\|current\|add\|del\|test`      | 管理用户级 npm registry（类似 nrm）                |
+| `sdkvm mrm ls\|use\|current\|add\|del\|test\|settings` | 管理 Maven 依赖镜像（`settings.xml`，类似 nrm） |
 | `sdkvm java\|go\|flutter\|node\|maven …`          | 各 SDK 的完整命令组                                |
 | `sdkvm version`                                   | 打印 CLI 版本（同 `sdkvm --version`）              |
 | `sdkvm upgrade`                                   | 升级 CLI。见[升级](#升级)                          |
@@ -331,6 +333,25 @@ sdkvm nrm test
 
 内置名：`npm`、`yarn`、`taobao`（别名 `npmmirror`）、`tencent`、`cnpm`、`huawei`、`npmMirror`。需要 PATH 上已有 `npm`。
 
+### `sdkvm mrm`
+
+管理 Maven **依赖和插件**的下载镜像，写入 `settings.xml` 里的 `<mirror>`，风格接近 `sdkvm nrm`。不调用 `mvn`，不写账号密码，也不改 `MAVEN_HOME`。与 `sdkvm maven mirror`（只改 Maven **安装包**地址）无关。
+
+```sh
+sdkvm mrm ls
+sdkvm mrm use aliyun
+sdkvm mrm use official
+sdkvm mrm add myrepo https://example.com/maven
+sdkvm mrm del myrepo
+sdkvm mrm test
+sdkvm mrm settings
+sdkvm mrm settings ~/.m2/settings.xml
+sdkvm mrm settings unset
+sdkvm mrm --settings /tmp/settings.xml use aliyun
+```
+
+内置名：`official`（删掉 sdkvm 标记块，恢复你原来的 mirror）、`aliyun`（别名 `ali`，聚合仓 `repository/public`）、`huawei`、`tencent`。只改 `<!-- >>> sdkvm mrm >>> -->` 标记块，其中 `id=sdkvm`、`mirrorOf=*`。路径优先级：`--settings` > 环境变量 `SDKVM_M2_SETTINGS` > `config.mavenSettings` > `~/.m2/settings.xml`。前两项不写入配置。路径不是 Maven 默认位置时，`use` 会提示 `mvn -s <path>`。
+
 ## 版本语法
 
 `install`、`use`、`uninstall` 共用下表。未列出的组合会被拒绝并给出改写提示。
@@ -436,7 +457,11 @@ Windows 上，五个 `current-*` 都是 junction。`use` 把用户级环境变�
   },
   "npmRegistries": {
     "myprivate": "http://xxx/registry/"
-  }
+  },
+  "mavenRegistries": {
+    "myrepo": "https://example.com/maven/"
+  },
+  "mavenSettings": ""
 }
 ```
 
@@ -446,6 +471,8 @@ Windows 上，五个 `current-*` 都是 junction。`use` 把用户级环境变�
 | `defaultVendor` | Java 省略厂商前缀时的发行版                | `"temurin"` |
 | `mirror`        | 厂商 id 到镜像根 URL。id 在全部 SDK 中唯一 | `{}`        |
 | `npmRegistries` | `sdkvm nrm add` 写入的自定义 npm 源        | `{}`        |
+| `mavenRegistries` | `sdkvm mrm add` 写入的自定义 Maven 依赖仓库 | `{}`     |
+| `mavenSettings` | 自定义 `settings.xml` 绝对路径；空串用默认文件 | `""`     |
 
 ### 环境变量
 
@@ -453,6 +480,7 @@ Windows 上，五个 `current-*` 都是 junction。`use` 把用户级环境变�
 | -------------------- | ------------------------------------------------------- |
 | `SDKVM_HOME`         | 数据根目录，默认 `~/.sdkvm`                             |
 | `SDKVM_MIRROR`       | 临时镜像，优先级高于配置文件，不写入配置                |
+| `SDKVM_M2_SETTINGS`  | 本次 `sdkvm mrm` 使用的 settings.xml，不写入配置    |
 | `SDKVM_QUIET`        | 非空时抑制 info 与 warn                                 |
 | `SDKVM_NODE_DIST`    | 安装脚本使用的 Node 发行根 URL                          |
 | `SDKVM_RELEASE_BASE` | 安装脚本与 `sdkvm upgrade` 使用的 GitHub Release 根 URL |
@@ -462,13 +490,13 @@ Windows 上，五个 `current-*` 都是 junction。`use` 把用户级环境变�
 
 ## 镜像与 npm 源
 
-两套独立能力，不要混用：
+三套独立能力，不要混用：
 
-|        | `sdkvm mirror`                               | `sdkvm nrm`         |
-| ------ | -------------------------------------------- | ------------------- |
-| 改什么 | JDK / Go / Flutter / Node / Maven **安装包**下载地址 | **npm 包** registry |
-| 影响   | `sdkvm … install`                            | `npm install`       |
-| 作用域 | 按 SDK 类型分别设置                          | 用户级全局          |
+|        | `sdkvm mirror`                                      | `sdkvm nrm`         | `sdkvm mrm`                          |
+| ------ | --------------------------------------------------- | ------------------- | ------------------------------------ |
+| 改什么 | JDK / Go / Flutter / Node / Maven **安装包**下载地址 | **npm 包** registry | Maven **依赖 / 插件**仓库            |
+| 影响   | `sdkvm … install`                                   | `npm install`       | `mvn` 解析依赖（读 `settings.xml`） |
+| 作用域 | 按 SDK 类型分别设置                                 | 用户级全局          | 一份 `settings.xml`                  |
 
 ### SDK 安装包镜像
 
@@ -516,6 +544,17 @@ sdkvm nrm use npm      # 恢复官方
 sdkvm nrm test         # 测延迟
 ```
 
+### Maven 依赖镜像
+
+`sdkvm mrm` 在 `settings.xml` 里写入或删除一段标记块（`mirrorOf=*`，`id=sdkvm`）。`use official` 只删这段，文件里其它 mirror、server、profile 保持不变。阿里云这里用聚合仓 `repository/public`，和安装包镜像 `repository/central` 不是同一个地址。
+
+```sh
+sdkvm mrm use aliyun    # 依赖走阿里云 public
+sdkvm mrm use official  # 去掉 sdkvm 这段 mirror
+sdkvm mrm settings ~/work/settings.xml
+mvn -s ~/work/settings.xml compile   # 非默认路径时需要自己带 -s
+```
+
 ## 安全性
 
 - 下载地址来自官方 API：Adoptium、Azul Metadata、Corretto、go.dev/dl、Flutter releases、nodejs.org/dist `index.json`、Maven Central `maven-metadata.xml`。不抓取搜索页。
@@ -558,9 +597,9 @@ fish_add_path $JAVA_HOME/bin $GO_HOME/bin $FLUTTER_HOME/bin $NODE_HOME/bin $MAVE
 
 脚本安装用 `~/.sdkvm/runtime` 启动 CLI，`sdkvm node use` 不影响它。npm 全局安装跟随 `PATH` 上的 `node`；切到 18.15 以前时 CLI 可能无法启动，`sdkvm node use 22` 可以恢复。
 
-### `nrm` 和 `mirror` 有什么区别
+### `mirror`、`nrm`、`mrm` 有什么区别
 
-见[镜像与 npm 源](#镜像与-npm-源)：`nrm` 管 npm 拉包，`mirror` 管 SDK 安装包下载。
+见[镜像与 npm 源](#镜像与-npm-源)：`mirror` 管 SDK 安装包下载，`nrm` 管 npm 拉包，`mrm` 管 Maven 依赖仓库（`settings.xml`）。
 
 ### 代理
 

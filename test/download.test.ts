@@ -1,7 +1,9 @@
+import crypto from 'node:crypto';
+import fs from 'node:fs';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import crypto from 'node:crypto';
+import { Writable } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { downloadFile } from '../src/net/download.js';
 
@@ -54,6 +56,48 @@ describe('downloadFile 长度校验', () => {
     const dest = path.join(dir, 'c.zip');
     await expect(downloadFile('https://example.com/c.zip', dest)).rejects.toThrow(
       /Download incomplete: 5\/11 bytes/,
+    );
+    expect(existsSync(`${dest}.part`)).toBe(false);
+  });
+
+  it('响应中途断开时销毁写流，不把 ERR_STREAM_DESTROYED 变成未处理错误', async () => {
+    // write 回调故意晚于 destroy：复现大文件下载中断时 fs.WriteStream 的竞态
+    class LateWriteStream extends Writable {
+      override _write(_chunk: Buffer, _enc: BufferEncoding, cb: (err?: Error | null) => void): void {
+        setImmediate(() => {
+          if (this.destroyed) {
+            cb(
+              Object.assign(new Error('Cannot call write after a stream was destroyed'), {
+                code: 'ERR_STREAM_DESTROYED',
+              }),
+            );
+            return;
+          }
+          cb();
+        });
+      }
+    }
+    vi.spyOn(fs, 'createWriteStream').mockImplementation(
+      () => new LateWriteStream() as unknown as fs.WriteStream,
+    );
+
+    let first = true;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (first) {
+          first = false;
+          controller.enqueue(new Uint8Array([1, 2, 3, 4]));
+          return;
+        }
+        controller.error(new Error('connection reset'));
+      },
+    });
+    globalThis.fetch = (async () =>
+      new Response(body, { status: 200, headers: { 'content-length': '100' } })) as typeof fetch;
+
+    const dest = path.join(dir, 'flutter.zip');
+    await expect(downloadFile('https://example.com/flutter.zip', dest)).rejects.toThrow(
+      /Download failed after \d+ bytes: connection reset/,
     );
     expect(existsSync(`${dest}.part`)).toBe(false);
   });

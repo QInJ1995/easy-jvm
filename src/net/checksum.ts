@@ -1,17 +1,18 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import type { ResolvedArtifact } from '../vendor/types.js';
-import { httpText } from './http.js';
+import { HttpError, httpText } from './http.js';
 import { SdkvmError } from '../util/errors.js';
 import { log } from '../ui/log.js';
 
+const HEX40 = /^[0-9a-f]{40}$/i;
 const HEX64 = /^[0-9a-f]{64}$/i;
 const HEX128 = /^[0-9a-f]{128}$/i;
 
-export type ChecksumKind = 'sha256' | 'sha512';
+export type ChecksumKind = 'sha1' | 'sha256' | 'sha512';
 
 function hexOf(value: unknown, kind: ChecksumKind): string | null {
-  const re = kind === 'sha512' ? HEX128 : HEX64;
+  const re = kind === 'sha512' ? HEX128 : kind === 'sha1' ? HEX40 : HEX64;
   return typeof value === 'string' && re.test(value) ? value.toLowerCase() : null;
 }
 
@@ -21,7 +22,7 @@ function hex64(value: unknown): string | null {
 
 /**
  * 从校验源文本提取期望值：
- * - "<hash>" / "<hash>  filename"（.sha256 / .sha512）
+ * - "<hash>" / "<hash>  filename"（.sha1 / .sha256 / .sha512）
  * - Adoptium 资产 JSON 的 checksum，或当前 *.tar.gz.json 元数据的 sha256
  * - 旧版元数据 hashes[].content（alg 为 SHA-256）
  */
@@ -80,34 +81,93 @@ export interface VerifyChecksumOptions {
    * 通常是镜像上与归档同路径的旁路文件（`.sha512` / `.json`）。
    */
   fallbackUrl?: string;
+  /** 已下载的归档。SHA-512 不存在、改用 SHA-1 时用来重算哈希 */
+  file?: string;
 }
 
-async function readFallbackChecksum(
+function isNotFound(err: unknown): boolean {
+  return err instanceof HttpError && err.status === 404;
+}
+
+function sha1Sidecar(url: string | undefined): string | undefined {
+  if (!url?.endsWith('.sha512')) return undefined;
+  return `${url.slice(0, -'.sha512'.length)}.sha1`;
+}
+
+interface ChecksumHit {
+  expected: string;
+  kind: ChecksumKind;
+}
+
+/**
+ * 按顺序试校验源。404 视为「这个算法的旁路不存在」，继续下一个；
+ * 网络错误才算不可达。Maven 3.8 及更早只有 .sha1，没有 .sha512。
+ */
+async function loadChecksum(
   artifact: ResolvedArtifact,
-  url: string,
-  kind: ChecksumKind,
+  primaryKind: ChecksumKind,
+  officialUrl: string,
+  mirrorUrl: string | undefined,
   strict: boolean,
-): Promise<string | null> {
-  let expected: string | null;
-  try {
-    expected = extractExpectedChecksum(await httpText(url), kind);
-  } catch (err) {
+): Promise<ChecksumHit | null> {
+  const sameKind = [officialUrl, mirrorUrl].filter((url): url is string => Boolean(url));
+  let missing = false;
+  let networkErr: unknown;
+  for (let i = 0; i < sameKind.length; i++) {
+    const url = sameKind[i] as string;
+    try {
+      const expected = extractExpectedChecksum(await httpText(url), primaryKind);
+      if (expected) {
+        if (i > 0) {
+          log.warn(`official checksum unreachable for ${artifact.displayName}, verified with mirror sidecar`);
+        }
+        return { expected, kind: primaryKind };
+      }
+      missing = true;
+    } catch (err) {
+      if (isNotFound(err)) {
+        missing = true;
+        continue;
+      }
+      networkErr = err;
+      if (i === 0 && mirrorUrl) {
+        log.warn(`cannot fetch official checksum for ${artifact.displayName}, trying the mirror sidecar`);
+      }
+    }
+  }
+
+  const sha1Urls = [sha1Sidecar(officialUrl), sha1Sidecar(mirrorUrl)].filter((url): url is string => Boolean(url));
+  if (missing && sha1Urls.length > 0) {
+    for (const url of sha1Urls) {
+      try {
+        const expected = extractExpectedChecksum(await httpText(url), 'sha1');
+        if (!expected) continue;
+        log.warn(`no ${primaryKind} sidecar for ${artifact.displayName}, verifying with sha1`);
+        return { expected, kind: 'sha1' };
+      } catch (err) {
+        if (isNotFound(err)) continue;
+        networkErr = err;
+      }
+    }
+  }
+
+  if (!missing && !networkErr) return null;
+  if (networkErr && !missing) {
     if (strict) {
-      const detail = err instanceof Error ? err.message.split('\n')[0] : String(err);
+      const detail = networkErr instanceof Error ? networkErr.message.split('\n')[0] : String(networkErr);
       throw new SdkvmError(`Cannot fetch checksum for ${artifact.displayName}`, {
         hint: `${detail}. Official and mirror checksum URLs were both unreachable.`,
       });
     }
-    log.warn(`cannot fetch mirror checksum for ${artifact.displayName}, skipping verification`);
+    log.warn(`cannot fetch checksum for ${artifact.displayName}, skipping verification`);
     return null;
   }
-  if (expected) return expected;
   if (strict) {
     throw new SdkvmError(`Checksum source has no valid hash for ${artifact.displayName}`, {
-      hint: `Mirror sidecar ${url} did not contain a ${kind} hash.`,
+      hint: 'Mirrored downloads require a verifiable checksum.',
     });
   }
-  log.warn(`mirror sidecar has no valid hash for ${artifact.displayName}, skipping verification`);
+  log.warn(`checksum source has no valid hash for ${artifact.displayName}, skipping`);
   return null;
 }
 
@@ -129,30 +189,13 @@ export async function verifyChecksum(
     return;
   }
   let expected: string | null = info.expected?.toLowerCase() ?? null;
+  let kind: ChecksumKind = info.kind;
   if (!expected && info.url) {
     const fallback = opts.fallbackUrl && opts.fallbackUrl !== info.url ? opts.fallbackUrl : undefined;
-    try {
-      expected = extractExpectedChecksum(await httpText(info.url), info.kind);
-    } catch (err) {
-      if (!fallback) {
-        if (strict) {
-          const detail = err instanceof Error ? err.message.split('\n')[0] : String(err);
-          throw new SdkvmError(`Cannot fetch checksum for ${artifact.displayName}`, {
-            hint: `${detail}. Mirrored installs need a reachable checksum URL.`,
-          });
-        }
-        log.warn(`cannot fetch checksum for ${artifact.displayName}, skipping verification`);
-        return;
-      }
-      log.warn(`cannot fetch official checksum for ${artifact.displayName}, trying the mirror sidecar`);
-      expected = await readFallbackChecksum(artifact, fallback, info.kind, strict);
-      if (!expected) return;
-    }
-    if (!expected && fallback) {
-      log.warn(`official checksum has no valid hash for ${artifact.displayName}, trying the mirror sidecar`);
-      expected = await readFallbackChecksum(artifact, fallback, info.kind, strict);
-      if (!expected) return;
-    }
+    const hit = await loadChecksum(artifact, info.kind, info.url, fallback, strict);
+    if (!hit) return;
+    expected = hit.expected;
+    kind = hit.kind;
   }
   if (!expected) {
     if (strict) {
@@ -163,9 +206,15 @@ export async function verifyChecksum(
     log.warn(`checksum source has no valid hash for ${artifact.displayName}, skipping`);
     return;
   }
-  if (expected !== actual.toLowerCase()) {
+  const digest = kind === info.kind ? actual : opts.file ? await hashFile(opts.file, kind) : null;
+  if (!digest) {
+    throw new SdkvmError(`Cannot verify ${artifact.displayName} with ${kind}`, {
+      hint: 'The downloaded archive is required to rehash with a fallback checksum algorithm.',
+    });
+  }
+  if (expected !== digest.toLowerCase()) {
     throw new SdkvmError(`Checksum mismatch for ${artifact.displayName}`, {
-      hint: `expected ${expected}, got ${actual}`,
+      hint: `expected ${expected}, got ${digest}`,
     });
   }
 }

@@ -1,3 +1,7 @@
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { extractExpectedChecksum, verifyChecksum } from '../src/net/checksum.js';
 import { SdkvmError } from '../src/util/errors.js';
@@ -160,6 +164,41 @@ describe('verifyChecksum', () => {
       message: expect.stringMatching(/Cannot fetch checksum/),
       hint: expect.stringMatching(/both unreachable/),
     });
+  });
+
+  it('strict mode verifies Maven 3.8 with sha1 when sha512 sidecars 404', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sdkvm-sha1-'));
+    const file = path.join(dir, 'apache-maven-3.8.9-bin.tar.gz');
+    fs.writeFileSync(file, 'maven-3.8.9');
+    const sha1 = crypto.createHash('sha1').update('maven-3.8.9').digest('hex');
+    const warn = vi.spyOn(log, 'warn').mockImplementation(() => {});
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL | Request) => {
+        const u = String(url);
+        if (u.endsWith('.sha512')) return new Response('missing', { status: 404 });
+        if (u.endsWith('.sha1') && u.includes('repo.maven.apache.org')) return new Response(`${sha1}\n`);
+        throw new Error(`unexpected ${u}`);
+      }),
+    );
+    await verifyChecksum(
+      art({
+        displayName: 'Apache Maven 3.8.9',
+        checksum: {
+          kind: 'sha512',
+          url: 'https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.8.9/apache-maven-3.8.9-bin.tar.gz.sha512',
+        },
+      }),
+      'ab'.repeat(64),
+      {
+        strict: true,
+        fallbackUrl:
+          'https://maven.aliyun.com/repository/central/org/apache/maven/apache-maven/3.8.9/apache-maven-3.8.9-bin.tar.gz.sha512',
+        file,
+      },
+    );
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('verifying with sha1'));
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it('mismatch always fails', async () => {

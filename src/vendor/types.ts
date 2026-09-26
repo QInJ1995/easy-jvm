@@ -25,7 +25,7 @@ export interface ResolvedArtifact {
   downloadUrl: string;
   /**
    * 校验信息；尽力校验，缺失时 warn 放行。
-   * sha256：Go / Flutter / Node / Java。sha512：Maven Central 的 .sha512 旁路文件。
+   * sha256：Go / Flutter / Node / Java。sha512：较新的 Maven Central 旁路；更早的 Maven 只有 .sha1。
    */
   checksum: { kind: 'sha256' | 'sha512'; url?: string; expected?: string } | null;
   archive: 'tar.gz' | 'tar.xz' | 'zip';

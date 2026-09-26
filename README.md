@@ -98,7 +98,7 @@ irm https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.ps1 | iex
 
 ```console
 $ sdkvm version
-1.0.4
+1.0.5
 ```
 
 自定义数据根时，**必须在安装命令的环境里带上** `SDKVM_HOME`（`curl | sh` 不会读取 `~/.zshrc`）：
@@ -497,7 +497,7 @@ sdkvm go mirror set golang https://golang.google.cn/dl
 SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 ```
 
-优先级：`SDKVM_MIRROR` > `config.mirror[<vendor>]` > 官方源。镜像只替换归档下载地址；版本元数据与校验和优先走官方 API。官方校验源不可达、且校验文件是归档旁路（Maven `.sha512`、Temurin `.json`）时，改拉镜像上的同一文件再核对。两边都拿不到，或哈希不一致，安装仍失败。
+优先级：`SDKVM_MIRROR` > `config.mirror[<vendor>]` > 官方源。镜像只替换归档下载地址；版本元数据与校验和优先走官方 API。官方校验源不可达、且校验文件是归档旁路（Maven `.sha512`、Temurin `.json`）时，改拉镜像上的同一文件再核对。Maven 3.8 及更早没有 `.sha512`，改用 Central 上的 `.sha1`。两边都拿不到，或哈希不一致，安装仍失败。
 
 | 厂商           | 说明                                                                                                                            |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -505,7 +505,7 @@ SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 | Go             | 文件名拼在根 URL 后；如 `nju` / `aliyun`                                                                                        |
 | Flutter        | 桶前缀替换；已验证 [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release)。不要用 `storage.flutter-io.cn`（无发布清单） |
 | Node.js        | 前缀替换；已验证 [NJU](https://mirror.nju.edu.cn/nodejs-release)。不要用 TUNA nodejs-release（缺归档）                          |
-| Maven          | Central 路径前缀替换；已验证 [阿里云 central](https://maven.aliyun.com/repository/central)、[华为云 maven](https://repo.huaweicloud.com/repository/maven)。校验用官方 `.sha512` |
+| Maven          | Central 路径前缀替换；已验证 [阿里云 central](https://maven.aliyun.com/repository/central)、[华为云 maven](https://repo.huaweicloud.com/repository/maven)。较新版本用 `.sha512`，3.8 及更早用 `.sha1` |
 | Zulu、Corretto | 官方 CDN 直发，暂不支持镜像                                                                                                     |
 
 ### npm registry
@@ -519,7 +519,7 @@ sdkvm nrm test         # 测延迟
 ## 安全性
 
 - 下载地址来自官方 API：Adoptium、Azul Metadata、Corretto、go.dev/dl、Flutter releases、nodejs.org/dist `index.json`、Maven Central `maven-metadata.xml`。不抓取搜索页。
-- 归档按块计算 SHA-256。Go、Flutter、Node.js（官方 `SHASUMS256.txt`）校验失败即中止。Maven 再对落盘文件计算 SHA-512，对照 `.sha512`（Central 不提供 `.sha256`）。校验源不可达时：官方下载警告并继续；走镜像时先试官方旁路，失败再试镜像上的同一文件。两边都拿不到，或哈希不一致，安装失败。
+- 归档按块计算 SHA-256。Go、Flutter、Node.js（官方 `SHASUMS256.txt`）校验失败即中止。Maven 再对照 `.sha512`；Central 没有该文件时（3.8 及更早）改用 `.sha1`。校验源不可达时：官方下载警告并继续；走镜像时先试官方旁路，失败再试镜像上的同一文件。两边都拿不到，或哈希不一致，安装失败。
 - 解压后检查单根目录和可执行文件，并且只解压到新的空目录。
 - 安装与 `sdkvm upgrade` 持有 `~/.sdkvm/.lock`，避免并发写互相覆盖。
 

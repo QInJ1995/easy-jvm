@@ -92,7 +92,7 @@ export async function installCommand(
     const fallbackUrl = applied
       ? checksumSidecarFallback(resolved.downloadUrl, resolved.checksum?.url, artifact.downloadUrl)
       : undefined;
-    await verifyChecksum(artifact, actual, { strict: applied, fallbackUrl });
+    await verifyChecksum(artifact, actual, { strict: applied, fallbackUrl, file: dest });
 
     const tmp = tmpExtractDir(paths.tmp());
     const bak = `${finalDir}.bak`;

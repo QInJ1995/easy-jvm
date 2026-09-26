@@ -98,7 +98,7 @@ Then open a new terminal, or `source` the rc file, and check:
 
 ```console
 $ sdkvm version
-1.0.4
+1.0.5
 ```
 
 To use a custom data root, **pass `SDKVM_HOME` on the install command itself** (`curl | sh` does not read `~/.zshrc`):
@@ -497,7 +497,7 @@ sdkvm go mirror set golang https://golang.google.cn/dl
 SDKVM_MIRROR=https://golang.google.cn/dl sdkvm go install 1.24
 ```
 
-Precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official. A mirror replaces the archive URL only; metadata and checksums prefer the official API. If that checksum URL is unreachable and the checksum is a sidecar of the archive (Maven `.sha512`, Temurin `.json`), install fetches the same sidecar from the mirror and still checks the hash. Install fails when both URLs are unreachable, or when the hash does not match.
+Precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official. A mirror replaces the archive URL only; metadata and checksums prefer the official API. If that checksum URL is unreachable and the checksum is a sidecar of the archive (Maven `.sha512`, Temurin `.json`), install fetches the same sidecar from the mirror and still checks the hash. Maven 3.8 and older have no `.sha512`, so those releases are checked with the published `.sha1`. Install fails when both URLs are unreachable, or when the hash does not match.
 
 | Vendor         | Notes                                                                                                                                          |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -505,7 +505,7 @@ Precedence: `SDKVM_MIRROR` > `config.mirror[<vendor>]` > official. A mirror repl
 | Go             | File name appended to the root; e.g. `nju` / `aliyun`                                                                                          |
 | Flutter        | Bucket-prefix replacement; verified against [NJU](https://mirror.nju.edu.cn/flutter/flutter_infra_release). Do not use `storage.flutter-io.cn` |
 | Node.js        | Prefix replacement; verified against [NJU](https://mirror.nju.edu.cn/nodejs-release). Do not use TUNA nodejs-release                           |
-| Maven          | Central path prefix replacement; verified against [Aliyun central](https://maven.aliyun.com/repository/central) and [Huawei maven](https://repo.huaweicloud.com/repository/maven). Checksums are the official `.sha512` |
+| Maven          | Central path prefix replacement; verified against [Aliyun central](https://maven.aliyun.com/repository/central) and [Huawei maven](https://repo.huaweicloud.com/repository/maven). Newer releases use `.sha512`; 3.8 and older use `.sha1` |
 | Zulu, Corretto | Official CDN only; no mirror support yet                                                                                                       |
 
 ### npm registry
@@ -519,7 +519,7 @@ sdkvm nrm test         # latency
 ## Security
 
 - URLs are resolved from official APIs: Adoptium, Azul Metadata, Corretto, go.dev/dl, Flutter releases, nodejs.org/dist `index.json`, and Maven Central `maven-metadata.xml`. Search pages are not scraped.
-- Archives are hashed with SHA-256 as they download. Go, Flutter, and Node.js (official `SHASUMS256.txt`) abort on mismatch. Maven hashes the file again with SHA-512 and checks the `.sha512` sidecar (Central does not publish `.sha256`). If a checksum source is unreachable: an official download warns and continues; a mirrored download tries the official sidecar, then the same file on the mirror. Install fails when both are unreachable, or when the hash does not match.
+- Archives are hashed with SHA-256 as they download. Go, Flutter, and Node.js (official `SHASUMS256.txt`) abort on mismatch. Maven checks the `.sha512` sidecar, or the published `.sha1` when Central has no `.sha512` (3.8 and older). If a checksum source is unreachable: an official download warns and continues; a mirrored download tries the official sidecar, then the same file on the mirror. Install fails when both are unreachable, or when the hash does not match.
 - After extract, the tree must have a single root and the expected executable. Extraction always targets a fresh empty directory.
 - Install and `sdkvm upgrade` hold `~/.sdkvm/.lock` so concurrent writers do not overwrite each other.
 

@@ -14,7 +14,7 @@ const META_URL =
   'https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml';
 const REPO = 'https://repo.maven.apache.org/maven2';
 
-/** Central 的 bin 包旁路校验是 .sha512，没有 .sha256 */
+/** 新版 Central 旁路是 .sha512；3.8 及更早只有 .sha1，校验阶段再回退 */
 const MIN_MAJOR = 3;
 
 interface ListedVersion {

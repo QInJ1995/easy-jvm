@@ -69,22 +69,11 @@
 
 ## 安装
 
-### npm、pnpm、yarn、bun
+**推荐使用安装脚本**：无需本机预装 Node.js，CLI 自带隔离运行时，数据与入口都在 `SDKVM_HOME`（默认 `~/.sdkvm`）下，升级用 `sdkvm upgrade` 即可。
 
-本机需要 Node.js >= 18.15。四条命令都从 npm registry 安装：
+### 安装脚本（推荐）
 
-```sh
-npm install -g sdkvm
-pnpm add -g sdkvm
-yarn global add sdkvm
-bun add -g sdkvm
-```
-
-装好后 CLI 使用 `PATH` 上的 `node`。若之后切到 18.15 以前的 Node，CLI 会无法启动，切回较新版本即可。
-
-### 安装脚本
-
-不要求本机已经安装 Node.js。需要仓库已有带 `sdkvm.tgz` 与 `SHA256SUMS` 的 GitHub Release（打 `v*` tag 后由 CI 上传）。
+需要仓库已有带 `sdkvm.tgz` 与 `SHA256SUMS` 的 [GitHub Release](https://github.com/QInJ1995/sdkvm/releases)（打 `v*` tag 后由 CI 上传）。
 
 macOS / Linux：
 
@@ -100,33 +89,51 @@ irm https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.ps1 | iex
 
 脚本会：
 
-1. 下载 Node.js 22.20.0 到 `~/.sdkvm/runtime`。它只启动 CLI，`sdkvm node use` 不会改到它。
-2. 从 GitHub Release 下载 `sdkvm.tgz`，校验 SHA-256 后解压到 `~/.sdkvm/cli`。
-3. 写入 `~/.sdkvm/bin/sdkvm`（Windows 为 `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`），并把该目录写入 shell 配置 / 用户 PATH（zsh→`~/.zshrc`，bash→`~/.bash_profile` 或 `~/.bashrc`）。重开终端或 `source` 对应 rc 后即可使用 `sdkvm`。
+1. 下载 Node.js 22.20.0 到 `$SDKVM_HOME/runtime`（仅启动 CLI，`sdkvm node use` 不会改到它）。
+2. 从 GitHub Release 下载 `sdkvm.tgz`，校验 SHA-256 后解压到 `$SDKVM_HOME/cli`。
+3. 写入 `$SDKVM_HOME/bin/sdkvm`（Windows 为 `%SDKVM_HOME%\bin\sdkvm.cmd`），并把该目录写入 shell 配置 / 用户 PATH（zsh→`~/.zshrc`，bash→`~/.bash_profile` 或 `~/.bashrc`）。
 
-数据根与 CLI 一致：`SDKVM_HOME` 可覆盖，默认 `~/.sdkvm`。runtime 与 CLI 都落在该根下。国内可换下载前缀：
+装完后重开终端，或 `source` 对应 rc，再验证：
+
+```console
+$ sdkvm version
+1.0.2
+```
+
+自定义数据根时，**必须在安装命令的环境里带上** `SDKVM_HOME`（`curl | sh` 不会读取 `~/.zshrc`）：
+
+```sh
+SDKVM_HOME=/Volumes/Develop/sdkvm \
+  curl -fsSL https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.sh | sh
+```
+
+国内可换下载前缀：
 
 ```sh
 SDKVM_NODE_DIST=https://npmmirror.com/mirrors/node \
 SDKVM_RELEASE_BASE=https://github.com/QInJ1995/sdkvm/releases \
-  sh install.sh
+  curl -fsSL https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.sh | sh
 ```
 
-验证：
+### npm / pnpm / yarn / bun（备选）
 
-```console
-$ sdkvm version
-1.0.1
+适合本机已有 Node.js >= 18.15、且希望用包管理器统一管理全局工具的场景。CLI 依赖 `PATH` 上的 `node`；若之后切到 18.15 以前的 Node，CLI 可能无法启动。
+
+```sh
+npm install -g sdkvm
+pnpm add -g sdkvm
+yarn global add sdkvm
+bun add -g sdkvm
 ```
 
 ## 升级
 
 | 安装方式 | 命令 | 影响范围 |
 |---|---|---|
-| npm | `npm update -g sdkvm` | 只更新 CLI。pnpm / yarn / bun 用各自的全局更新命令 |
-| 脚本 | `sdkvm upgrade` | 只替换 `~/.sdkvm/cli`。runtime 与已安装的 SDK 保持不变 |
+| 脚本（推荐） | `sdkvm upgrade` | 只替换 `$SDKVM_HOME/cli`。runtime 与已安装的 SDK 保持不变 |
+| npm 等 | `npm update -g sdkvm` | 只更新 CLI。pnpm / yarn / bun 用各自的全局更新命令 |
 
-数据目录 `~/.sdkvm` 与 CLI 升级无关。脚本安装也可以重新执行安装脚本。
+数据目录与 CLI 升级无关。脚本安装也可以重新执行安装脚本。
 
 ## 快速开始
 

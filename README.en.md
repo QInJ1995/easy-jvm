@@ -69,22 +69,11 @@ Platform limits:
 
 ## Install
 
-### npm, pnpm, yarn, bun
+**Prefer the install script**: no preinstalled Node.js, an isolated runtime for the CLI, data and entrypoint under `SDKVM_HOME` (default `~/.sdkvm`), and upgrades via `sdkvm upgrade`.
 
-The machine needs Node.js >= 18.15. All four commands install from the npm registry:
+### Install script (recommended)
 
-```sh
-npm install -g sdkvm
-pnpm add -g sdkvm
-yarn global add sdkvm
-bun add -g sdkvm
-```
-
-The CLI then runs on whatever `node` is first on `PATH`. Switching to a Node older than 18.15 stops the CLI until you switch back.
-
-### Install script
-
-No preinstalled Node.js is required. A GitHub Release that already contains `sdkvm.tgz` and `SHA256SUMS` is required (uploaded by CI after a `v*` tag).
+Requires a [GitHub Release](https://github.com/QInJ1995/sdkvm/releases) that already contains `sdkvm.tgz` and `SHA256SUMS` (uploaded by CI after a `v*` tag).
 
 macOS / Linux:
 
@@ -100,33 +89,51 @@ irm https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.ps1 | iex
 
 The script:
 
-1. Downloads Node.js 22.20.0 into `~/.sdkvm/runtime`. That copy only launches the CLI. `sdkvm node use` does not change it.
-2. Downloads `sdkvm.tgz` from the GitHub Release, checks SHA-256, and extracts it to `~/.sdkvm/cli`.
-3. Writes `~/.sdkvm/bin/sdkvm` (on Windows, `%USERPROFILE%\.sdkvm\bin\sdkvm.cmd`) and adds that directory to the shell profile / user PATH (zsh → `~/.zshrc`, bash → `~/.bash_profile` or `~/.bashrc`). Open a new terminal or `source` the rc file, then run `sdkvm`.
+1. Downloads Node.js 22.20.0 into `$SDKVM_HOME/runtime` (CLI only; `sdkvm node use` does not change it).
+2. Downloads `sdkvm.tgz` from the GitHub Release, checks SHA-256, and extracts it to `$SDKVM_HOME/cli`.
+3. Writes `$SDKVM_HOME/bin/sdkvm` (on Windows, `%SDKVM_HOME%\bin\sdkvm.cmd`) and adds that directory to the shell profile / user PATH (zsh → `~/.zshrc`, bash → `~/.bash_profile` or `~/.bashrc`).
 
-The data root matches the CLI: `SDKVM_HOME` overrides it, otherwise `~/.sdkvm`. Both the runtime and the CLI live under that root. Override download prefixes when needed:
+Then open a new terminal, or `source` the rc file, and check:
+
+```console
+$ sdkvm version
+1.0.2
+```
+
+To use a custom data root, **pass `SDKVM_HOME` on the install command itself** (`curl | sh` does not read `~/.zshrc`):
+
+```sh
+SDKVM_HOME=/Volumes/Develop/sdkvm \
+  curl -fsSL https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.sh | sh
+```
+
+Override download prefixes when needed:
 
 ```sh
 SDKVM_NODE_DIST=https://npmmirror.com/mirrors/node \
 SDKVM_RELEASE_BASE=https://github.com/QInJ1995/sdkvm/releases \
-  sh install.sh
+  curl -fsSL https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.sh | sh
 ```
 
-Check:
+### npm / pnpm / yarn / bun (alternative)
 
-```console
-$ sdkvm version
-1.0.1
+Use this when Node.js >= 18.15 is already installed and you want the package manager to own global tools. The CLI follows the `node` on `PATH`; a Node older than 18.15 can stop the CLI.
+
+```sh
+npm install -g sdkvm
+pnpm add -g sdkvm
+yarn global add sdkvm
+bun add -g sdkvm
 ```
 
 ## Upgrade
 
 | Install method | Command | What changes |
 |---|---|---|
-| npm | `npm update -g sdkvm` | CLI only. pnpm / yarn / bun use their own global update command |
-| script | `sdkvm upgrade` | Replaces `~/.sdkvm/cli` only. The runtime and installed SDKs stay |
+| Script (recommended) | `sdkvm upgrade` | Replaces `$SDKVM_HOME/cli` only. The runtime and installed SDKs stay |
+| npm and friends | `npm update -g sdkvm` | CLI only. pnpm / yarn / bun use their own global update command |
 
-`~/.sdkvm` data is independent of a CLI upgrade. A script install can also be refreshed by running the install script again.
+The data directory is independent of a CLI upgrade. A script install can also be refreshed by running the install script again.
 
 ## Quick start
 

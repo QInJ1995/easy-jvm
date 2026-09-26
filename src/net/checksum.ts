@@ -5,13 +5,38 @@ import { log } from '../ui/log.js';
 
 const HEX64 = /^[0-9a-f]{64}$/i;
 
-/** 从校验源文本提取期望值："<hash>" / "<hash>  filename" / Adoptium 资产 JSON 的 checksum 字段 */
+function hex64(value: unknown): string | null {
+  return typeof value === 'string' && HEX64.test(value) ? value.toLowerCase() : null;
+}
+
+/**
+ * 从校验源文本提取期望值：
+ * - "<hash>" / "<hash>  filename"（.sha256.txt）
+ * - Adoptium 资产 JSON 的 checksum，或当前 *.tar.gz.json 元数据的 sha256
+ * - 旧版元数据 hashes[].content（alg 为 SHA-256）
+ */
 export function extractExpectedChecksum(text: string): string | null {
   const trimmed = text.trim();
   if (trimmed.startsWith('{')) {
     try {
-      const obj = JSON.parse(trimmed) as { checksum?: string };
-      if (obj.checksum && HEX64.test(obj.checksum)) return obj.checksum.toLowerCase();
+      const obj = JSON.parse(trimmed) as {
+        checksum?: unknown;
+        sha256?: unknown;
+        hashes?: unknown;
+      };
+      const direct = hex64(obj.checksum) ?? hex64(obj.sha256);
+      if (direct) return direct;
+      if (Array.isArray(obj.hashes)) {
+        for (const item of obj.hashes) {
+          if (!item || typeof item !== 'object') continue;
+          const hash = item as { alg?: unknown; content?: unknown };
+          const alg = typeof hash.alg === 'string' ? hash.alg.toLowerCase().replace(/-/g, '') : '';
+          if (alg === 'sha256') {
+            const content = hex64(hash.content);
+            if (content) return content;
+          }
+        }
+      }
     } catch {
       // 非法 JSON 视为无校验
     }

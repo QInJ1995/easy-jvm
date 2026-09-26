@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { verifyChecksum } from '../src/net/checksum.js';
+import { extractExpectedChecksum, verifyChecksum } from '../src/net/checksum.js';
 import { SdkvmError } from '../src/util/errors.js';
 import { log } from '../src/ui/log.js';
 import type { ResolvedArtifact } from '../src/vendor/types.js';
@@ -21,6 +21,40 @@ function art(partial: Partial<ResolvedArtifact> = {}): ResolvedArtifact {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+describe('extractExpectedChecksum', () => {
+  const hash = 'ab'.repeat(32);
+
+  it('reads a bare hash or a sha256.txt line', () => {
+    expect(extractExpectedChecksum(`${hash}\n`)).toBe(hash);
+    expect(extractExpectedChecksum(`${hash.toUpperCase()}  file.tar.gz`)).toBe(hash);
+  });
+
+  it('reads Adoptium metadata sha256 and the older checksum field', () => {
+    expect(extractExpectedChecksum(JSON.stringify({ sha256: hash, vendor: 'Eclipse Adoptium' }))).toBe(
+      hash,
+    );
+    expect(extractExpectedChecksum(JSON.stringify({ checksum: hash }))).toBe(hash);
+  });
+
+  it('reads a SHA-256 entry from the legacy hashes array', () => {
+    expect(
+      extractExpectedChecksum(
+        JSON.stringify({
+          hashes: [
+            { alg: 'SHA-1', content: 'aa'.repeat(20) },
+            { alg: 'SHA-256', content: hash },
+          ],
+        }),
+      ),
+    ).toBe(hash);
+  });
+
+  it('returns null when the JSON has no hash', () => {
+    expect(extractExpectedChecksum(JSON.stringify({ vendor: 'Eclipse Adoptium' }))).toBeNull();
+    expect(extractExpectedChecksum('{')).toBeNull();
+  });
 });
 
 describe('verifyChecksum', () => {
@@ -50,6 +84,19 @@ describe('verifyChecksum', () => {
         { strict: true },
       ),
     ).rejects.toThrow(/Cannot fetch checksum/);
+  });
+
+  it('strict mode accepts Adoptium metadata sha256', async () => {
+    const hash = 'ab'.repeat(32);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify({ sha256: hash }))),
+    );
+    await verifyChecksum(
+      art({ checksum: { kind: 'sha256', url: 'https://example.com/a.tar.gz.json' } }),
+      hash,
+      { strict: true },
+    );
   });
 
   it('accepts inline expected hash', async () => {

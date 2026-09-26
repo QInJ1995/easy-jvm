@@ -180,19 +180,110 @@ function ensureTrailingNewline(content: string): string {
   return content.endsWith('\n') ? content : `${content}\n`;
 }
 
+interface XmlTag {
+  /** `<` 的下标 */
+  start: number;
+  /** `>` 后一位 */
+  end: number;
+  name: string;
+  closing: boolean;
+  selfClosing: boolean;
+}
+
+function skipUntil(content: string, from: number, marker: string): number {
+  const at = content.indexOf(marker, from);
+  return at === -1 ? content.length : at + marker.length;
+}
+
+/** 读一个标签。属性引号里的 `>` 不算结束。读不到 `>` 时返回 null。 */
+function readTag(content: string, lt: number): XmlTag | null {
+  let i = lt + 1;
+  let closing = false;
+  if (content[i] === '/') {
+    closing = true;
+    i += 1;
+  }
+  const nameStart = i;
+  while (i < content.length && /[A-Za-z0-9_:-]/.test(content[i] ?? '')) i += 1;
+  if (i === nameStart) return null;
+  const name = content.slice(nameStart, i);
+  let quote: '"' | "'" | null = null;
+  let selfClosing = false;
+  for (; i < content.length; i += 1) {
+    const ch = content[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+    if (ch === '/') {
+      selfClosing = true;
+      continue;
+    }
+    if (ch === '>') {
+      return { start: lt, end: i + 1, name, closing, selfClosing: selfClosing && !closing };
+    }
+  }
+  return null;
+}
+
+/**
+ * 跳过注释、CDATA、处理指令后再找标签。
+ * Maven 发行版自带的 settings.xml 把示例 `<mirrors>` 放在注释里，不能当成真标签。
+ */
+function findTag(content: string, name: string, closing: boolean): XmlTag | null {
+  const want = name.toLowerCase();
+  let i = 0;
+  while (i < content.length) {
+    if (content.startsWith('<!--', i)) {
+      i = skipUntil(content, i + 4, '-->');
+      continue;
+    }
+    if (content.startsWith('<![CDATA[', i)) {
+      i = skipUntil(content, i + 9, ']]>');
+      continue;
+    }
+    if (content.startsWith('<?', i)) {
+      i = skipUntil(content, i + 2, '?>');
+      continue;
+    }
+    if (content.startsWith('<!', i)) {
+      i = skipUntil(content, i + 2, '>');
+      continue;
+    }
+    if (content[i] !== '<') {
+      i += 1;
+      continue;
+    }
+    const tag = readTag(content, i);
+    if (!tag) {
+      i += 1;
+      continue;
+    }
+    if (tag.closing === closing && tag.name.toLowerCase() === want) return tag;
+    i = tag.end;
+  }
+  return null;
+}
+
 function insertBlock(content: string, block: string): string {
-  const selfClose = /<mirrors\b[^>]*\/>/i.exec(content);
-  if (selfClose) {
-    const open = selfClose[0].slice(0, -2).replace(/\s+$/, '');
-    const replacement = `${open}>\n${block}\n</mirrors>`;
-    return content.slice(0, selfClose.index) + replacement + content.slice(selfClose.index + selfClose[0].length);
+  const mirrors = findTag(content, 'mirrors', false);
+  if (mirrors?.selfClosing) {
+    const raw = content.slice(mirrors.start, mirrors.end);
+    const open = `${raw.slice(0, -1).replace(/\/\s*$/, '').replace(/\s+$/, '')}>`;
+    const replacement = `${open}\n${block}\n</${mirrors.name}>`;
+    return content.slice(0, mirrors.start) + replacement + content.slice(mirrors.end);
   }
-  const open = /<mirrors\b[^>]*>/i.exec(content);
-  if (open) {
-    const idx = open.index + open[0].length;
-    return `${content.slice(0, idx)}\n${block}${content.slice(idx)}`;
+  if (mirrors) {
+    return `${content.slice(0, mirrors.end)}\n${block}${content.slice(mirrors.end)}`;
   }
-  return content.replace(/<\/settings>/i, `<mirrors>\n${block}\n</mirrors>\n</settings>`);
+  const close = findTag(content, 'settings', true);
+  if (!close) return content;
+  const wrapped = `<mirrors>\n${block}\n</mirrors>\n`;
+  return content.slice(0, close.start) + wrapped + content.slice(close.start);
 }
 
 function minimalSettings(block: string): string {
@@ -208,7 +299,7 @@ export function applyMrmBlock(content: string, mirror: { name: string; url: stri
     return mirror ? minimalSettings(renderBlock(mirror.name, mirror.url)) : '';
   }
   assertMarkers(content);
-  if (!/<\/settings\s*>/i.test(content)) {
+  if (!findTag(content, 'settings', true)) {
     throw new SdkvmError('settings.xml has no </settings>', {
       hint: 'Fix the file, or point sdkvm mrm at another settings.xml.',
     });
@@ -282,6 +373,11 @@ function assertRepoUrl(raw: string): URL {
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
     throw new SdkvmError(`Invalid URL protocol: ${parsed.protocol}`, {
       hint: 'Expected http:// or https://',
+    });
+  }
+  if (parsed.username || parsed.password) {
+    throw new SdkvmError('Repository URL cannot include a username or password', {
+      hint: 'Maven credentials belong in <servers>, not in the mirror URL.',
     });
   }
   parsed.pathname = parsed.pathname.replace(/\/+$/, '') + '/';

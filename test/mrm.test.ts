@@ -106,6 +106,51 @@ describe('applyMrmBlock', () => {
     expect(() => applyMrmBlock(`<settings>${MRM_BEGIN}</settings>`, null)).toThrow(SdkvmError);
     expect(() => applyMrmBlock('<settings><mirrors></mirrors>', null)).toThrow(/no <\/settings>/);
   });
+
+  it('does not treat a commented mirrors example as the real element', () => {
+    const commented = `<settings>
+  <!-- mirrors
+  <mirrors>
+    <mirror>
+      <id>mirrorId</id>
+      <url>http://my.repository.com/repo/path</url>
+    </mirror>
+  </mirrors>
+   -->
+  <profiles><profile><id>keep</id></profile></profiles>
+</settings>
+`;
+    const xml = applyMrmBlock(commented, {
+      name: 'aliyun',
+      url: 'https://maven.aliyun.com/repository/public/',
+    });
+    const commentEnd = xml.indexOf('-->');
+    expect(xml.indexOf('http://my.repository.com/repo/path')).toBeLessThan(commentEnd);
+    expect(xml.indexOf('<id>sdkvm</id>')).toBeGreaterThan(commentEnd);
+    expect(xml).toContain('<id>keep</id>');
+  });
+
+  it('keeps an opening mirrors tag that has a URL in an attribute', () => {
+    const xml = applyMrmBlock(
+      '<settings>\n  <mirrors xmlns="http://maven.apache.org/SETTINGS/1.2.0">\n    <mirror><id>user</id></mirror>\n  </mirrors>\n</settings>\n',
+      { name: 'aliyun', url: 'https://maven.aliyun.com/repository/public/' },
+    );
+    expect(xml.match(/<\/mirrors>/g)).toHaveLength(1);
+    expect(xml.indexOf('<id>sdkvm</id>')).toBeLessThan(xml.indexOf('<id>user</id>'));
+  });
+
+  it('expands a self-closing mirrors tag', () => {
+    const xml = applyMrmBlock('<settings>\n  <mirrors />\n</settings>\n', {
+      name: 'aliyun',
+      url: 'https://maven.aliyun.com/repository/public/',
+    });
+    expect(xml.indexOf('<id>sdkvm</id>')).toBeLessThan(xml.indexOf('</mirrors>'));
+    expect(xml).not.toMatch(/<mirrors\s*\/>/);
+  });
+
+  it('ignores </settings> that only appears inside a comment', () => {
+    expect(() => applyMrmBlock('<settings>\n  <!-- </settings> -->\n', null)).toThrow(/no <\/settings>/);
+  });
 });
 
 describe('settings path', () => {
@@ -198,6 +243,7 @@ describe('mrm list and custom registries', () => {
     expect(loadConfig().mavenRegistries.myrepo).toBe('https://example.com/maven/');
     expect(() => mrmAdd('aliyun', 'https://example.com/maven/')).toThrow(/built-in/);
     expect(() => mrmAdd('corp', 'https://example.com/maven?a=1&b=2')).toThrow(/cannot contain/);
+    expect(() => mrmAdd('corp', 'https://user:secret@example.com/maven')).toThrow(/username or password/);
     mrmDel('myrepo');
     expect(loadConfig().mavenRegistries.myrepo).toBeUndefined();
     expect(() => mrmDel('ali')).toThrow(/built-in/);

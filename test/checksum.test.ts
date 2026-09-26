@@ -201,6 +201,33 @@ describe('verifyChecksum', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  it('strict mode reports unreachable when sha512 is 404 and sha1 cannot be fetched', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string | URL | Request) => {
+        const u = String(url);
+        if (u.endsWith('.sha512')) return new Response('missing', { status: 404 });
+        throw new Error('network down');
+      }),
+    );
+    await expect(
+      verifyChecksum(
+        art({
+          displayName: 'Apache Maven 3.8.9',
+          checksum: {
+            kind: 'sha512',
+            url: 'https://repo.maven.apache.org/maven2/a.tar.gz.sha512',
+          },
+        }),
+        'ab'.repeat(64),
+        { strict: true, fallbackUrl: 'https://maven.aliyun.com/repository/central/a.tar.gz.sha512' },
+      ),
+    ).rejects.toMatchObject({
+      message: expect.stringMatching(/Cannot fetch checksum/),
+      hint: expect.stringMatching(/both unreachable/),
+    });
+  });
+
   it('mismatch always fails', async () => {
     await expect(
       verifyChecksum(art({ checksum: { kind: 'sha256', expected: 'ab'.repeat(32) } }), 'cd'.repeat(32)),

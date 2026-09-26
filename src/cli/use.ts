@@ -41,25 +41,28 @@ export async function useCommand(
   const installed = findInstalled(type, specInput, opts.vendor);
   const label = `${installed.version.vendor}-${spec.formatVersion(installed.version)}`;
 
+  let rc: string | null = null;
   await withLock(async () => {
     setCurrent(type, installed.home, platform);
+    // rc / 注册表和 current 链接放在同一把锁里，避免两次 use 互相覆盖标记块
+    if (platform.os === 'windows') {
+      await setSdkEnvWin(type);
+      await ensureUserPathWin(sdkPathEntry(type));
+    } else {
+      rc = detectRcFile(platform.os);
+      if (rc) upsertRcFile(rc, type);
+    }
   });
   log.ok(`current → ${label}`);
 
   if (platform.os === 'windows') {
-    await setSdkEnvWin(type);
-    await ensureUserPathWin(sdkPathEntry(type));
     log.info(`${spec.envVar} and PATH updated in user environment`);
     log.warn('reopen your terminal (or restart your IDE) for the change to take effect');
+  } else if (rc) {
+    log.info(`updated ${rc} — run: source ${rc} (or open a new terminal)`);
   } else {
-    const rc = detectRcFile(platform.os);
-    if (rc) {
-      upsertRcFile(rc, type);
-      log.info(`updated ${rc} — run: source ${rc} (or open a new terminal)`);
-    } else {
-      log.warn('could not detect your shell; add this to your rc file manually:');
-      console.log(rcBlock(type));
-    }
+    log.warn('could not detect your shell; add this to your rc file manually:');
+    console.log(rcBlock(type));
   }
   if (spec.requiresJdk && !envGet('JAVA_HOME')) {
     log.warn(`${spec.label} needs a JDK. Run: ${CLI_BIN} java use <version>`);

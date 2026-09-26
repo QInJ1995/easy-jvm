@@ -151,8 +151,9 @@ async function loadChecksum(
     }
   }
 
-  if (!missing && !networkErr) return null;
-  if (networkErr && !missing) {
+  // 有过网络失败就不能当成「文件里没有哈希」：404 只说明这个算法的旁路不存在，
+  // 另一条 URL 连不上时仍然应该报不可达，让安装重试而不是换一套错误提示。
+  if (networkErr) {
     if (strict) {
       const detail = networkErr instanceof Error ? networkErr.message.split('\n')[0] : String(networkErr);
       throw new SdkvmError(`Cannot fetch checksum for ${artifact.displayName}`, {
@@ -162,6 +163,7 @@ async function loadChecksum(
     log.warn(`cannot fetch checksum for ${artifact.displayName}, skipping verification`);
     return null;
   }
+  if (!missing) return null;
   if (strict) {
     throw new SdkvmError(`Checksum source has no valid hash for ${artifact.displayName}`, {
       hint: 'Mirrored downloads require a verifiable checksum.',

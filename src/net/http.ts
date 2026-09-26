@@ -33,6 +33,7 @@ export async function httpFetch(url: string, init: RequestInit = {}): Promise<Re
         return res;
       }
       if (res.status >= 500 && attempt < RETRIES) {
+        await res.body?.cancel()?.catch(() => undefined);
         lastErr = new HttpError(`Server error ${res.status}`, res.status, url);
         await sleep(500 * 2 ** (attempt - 1));
         continue;

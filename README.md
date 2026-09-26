@@ -98,7 +98,7 @@ irm https://raw.githubusercontent.com/QInJ1995/sdkvm/main/install.ps1 | iex
 
 ```console
 $ sdkvm version
-1.1.0
+1.0.4
 ```
 
 自定义数据根时，**必须在安装命令的环境里带上** `SDKVM_HOME`（`curl | sh` 不会读取 `~/.zshrc`）：
